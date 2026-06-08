@@ -127,7 +127,7 @@ class _StartAuditScreenState extends State<StartAuditScreen> {
             const SizedBox(height: 16),
             _buildDropdownLabel('Hat Seçimi'),
             DropdownButtonFormField<String>(
-              initialValue: selectedLineValue,
+              value: selectedLineValue,
               dropdownColor: Theme.of(context).cardTheme.color,
               decoration: _inputDecoration(),
               hint: const Text('Hat seçin'),
@@ -144,7 +144,7 @@ class _StartAuditScreenState extends State<StartAuditScreen> {
             const SizedBox(height: 20),
             _buildDropdownLabel('İstasyon Seçimi'),
             DropdownButtonFormField<String>(
-              initialValue: selectedStationValue,
+              value: selectedStationValue,
               dropdownColor: Theme.of(context).cardTheme.color,
               decoration: _inputDecoration(),
               hint: const Text('İstasyon seçin'),

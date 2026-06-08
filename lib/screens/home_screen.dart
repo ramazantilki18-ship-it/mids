@@ -995,7 +995,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            initialValue: selectedLineValue,
+            value: selectedLineValue,
             dropdownColor: Theme.of(context).cardTheme.color,
             decoration: _inputDecoration(),
             hint: Text(
@@ -1021,7 +1021,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
-            initialValue: selectedStationValue,
+            value: selectedStationValue,
             dropdownColor: Theme.of(context).cardTheme.color,
             decoration: _inputDecoration(),
             hint: Text(

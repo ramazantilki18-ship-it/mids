@@ -67,7 +67,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 
 
                 DropdownButtonFormField<UserRole>(
-                  initialValue: _selectedRole,
+                  value: _selectedRole,
                   decoration: const InputDecoration(labelText: 'Sistem Yetkisi', border: OutlineInputBorder()),
                   items: UserRole.values.map((r) => DropdownMenuItem(value: r, child: Text(r.displayName))).toList(),
                   onChanged: (val) {

@@ -82,7 +82,7 @@ class _MetroLogoColorMapper extends ColorMapper {
     String attributeName,
     Color color,
   ) {
-    final value = color.toARGB32() & 0x00FFFFFF;
+    final value = color.value & 0x00FFFFFF;
     if (value == 0xD7282F) return _metroRed;
     if (value == 0xB2292E) return _metroDarkRed;
     if (value == 0x021D49) return _metroDarkBlue;

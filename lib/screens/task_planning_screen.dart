@@ -87,7 +87,7 @@ class _TaskPlanningScreenState extends State<TaskPlanningScreen> {
                       const SizedBox(height: 16),
                       if (editTask == null)
                         DropdownButtonFormField<String>(
-                          initialValue: _planningPeriod,
+                          value: _planningPeriod,
                           decoration: const InputDecoration(labelText: 'Planlama Periyodu', border: OutlineInputBorder()),
                           items: ['Tekil Denetim', 'Aylık Planlama', 'Yıllık Planlama']
                               .map((t) => DropdownMenuItem(value: t, child: Text(t)))
@@ -101,7 +101,7 @@ class _TaskPlanningScreenState extends State<TaskPlanningScreen> {
                         ),
                       if (editTask == null) const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
-                        initialValue: system.auditTypes.any((t) => t.id == _selectedAuditTypeId) ? _selectedAuditTypeId : null,
+                        value: system.auditTypes.any((t) => t.id == _selectedAuditTypeId) ? _selectedAuditTypeId : null,
                         decoration: const InputDecoration(labelText: 'Denetim Tipi', border: OutlineInputBorder()),
                         items: system.auditTypes.map((type) => DropdownMenuItem(
                           value: type.id,
@@ -115,7 +115,7 @@ class _TaskPlanningScreenState extends State<TaskPlanningScreen> {
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String?>(
-                        initialValue: _selectedUserId,
+                        value: _selectedUserId,
                         decoration: const InputDecoration(labelText: 'Denetçi Seç', border: OutlineInputBorder()),
                         items: [
                           if (_planningPeriod == 'Tekil Denetim') const DropdownMenuItem(value: null, child: Text('Kişi Atanmadı')),
@@ -141,7 +141,7 @@ class _TaskPlanningScreenState extends State<TaskPlanningScreen> {
 
                       if (_planningPeriod == 'Tekil Denetim') ...[
                         DropdownButtonFormField<String>(
-                          initialValue: _selectedTaskType,
+                          value: _selectedTaskType,
                           decoration: const InputDecoration(labelText: 'Görev Türü', border: OutlineInputBorder()),
                           items: ['Planlı Denetim', 'Plansız Denetim']
                               .map((t) => DropdownMenuItem(value: t, child: Text(t)))
@@ -151,7 +151,7 @@ class _TaskPlanningScreenState extends State<TaskPlanningScreen> {
                         const SizedBox(height: 16),
                         if (_selectedTaskType == 'Plansız Denetim')
                           DropdownButtonFormField<String>(
-                            initialValue: _selectedLine,
+                            value: _selectedLine,
                             decoration: const InputDecoration(labelText: 'İlgili Hat', border: OutlineInputBorder()),
                             items: system.lines.map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(),
                             onChanged: (val) => setDialogState(() {
@@ -236,7 +236,7 @@ class _TaskPlanningScreenState extends State<TaskPlanningScreen> {
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<int>(
-                                initialValue: _selectedYear,
+                                value: _selectedYear,
                                 decoration: const InputDecoration(labelText: 'Yıl', border: OutlineInputBorder()),
                                 items: [2024, 2025, 2026].map((y) => DropdownMenuItem(value: y, child: Text(y.toString()))).toList(),
                                 onChanged: (val) => setDialogState(() => _selectedYear = val!),
@@ -245,7 +245,7 @@ class _TaskPlanningScreenState extends State<TaskPlanningScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: DropdownButtonFormField<int>(
-                                initialValue: _selectedMonth,
+                                value: _selectedMonth,
                                 decoration: const InputDecoration(labelText: 'Ay', border: OutlineInputBorder()),
                                 items: List.generate(12, (i) => i + 1).map((m) => DropdownMenuItem(value: m, child: Text(DateFormat('MMMM', 'tr_TR').format(DateTime(2024, m))))).toList(),
                                 onChanged: (val) => setDialogState(() => _selectedMonth = val!),
@@ -298,7 +298,7 @@ class _TaskPlanningScreenState extends State<TaskPlanningScreen> {
                       ]
                       else if (_planningPeriod == 'Yıllık Planlama') ...[
                         DropdownButtonFormField<int>(
-                          initialValue: _selectedYear,
+                          value: _selectedYear,
                           decoration: const InputDecoration(labelText: 'Yıl', border: OutlineInputBorder()),
                           items: [2024, 2025, 2026].map((y) => DropdownMenuItem(value: y, child: Text(y.toString()))).toList(),
                           onChanged: (val) => setDialogState(() => _selectedYear = val!),
