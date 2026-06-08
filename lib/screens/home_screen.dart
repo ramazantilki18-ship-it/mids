@@ -13,6 +13,9 @@ import '../models/user_model.dart';
 import '../models/task_model.dart';
 import '../models/announcement_model.dart';
 import '../theme/app_colors.dart';
+import '../services/update_service.dart';
+import '../widgets/update_dialog.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../widgets/metro_brand_header.dart';
 import '../widgets/audit_type_selector.dart';
@@ -40,6 +43,21 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {});
       }
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkUpdates();
+    });
+  }
+
+  Future<void> _checkUpdates() async {
+    if (kIsWeb) return;
+    final updateInfo = await UpdateService.instance.checkForUpdate();
+    if (updateInfo.isAvailable && mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => UpdateDialog(updateInfo: updateInfo),
+      );
+    }
   }
 
   @override
@@ -335,98 +353,64 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: Theme.of(context)
-                  .primaryColor
-                  .withValues(alpha: isDark ? 0.24 : 0.10),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(context)
-                    .primaryColor
-                    .withValues(alpha: isDark ? 0.18 : 0.08),
-                blurRadius: 22,
-                offset: const Offset(0, 10),
-              ),
-            ],
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Theme.of(context)
+              .primaryColor
+              .withValues(alpha: isDark ? 0.24 : 0.10),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context)
+                .primaryColor
+                .withValues(alpha: isDark ? 0.18 : 0.08),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
           ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final isMobileHeader = constraints.maxWidth < 460;
-              final greetingText = Text(
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isSmall = constraints.maxWidth < 360;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isSmall) ...[
+                Center(child: brandHeader),
+                const SizedBox(height: 10),
+                Center(child: actionButtons),
+              ] else ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    brandHeader,
+                    actionButtons,
+                  ],
+                ),
+              ],
+              const SizedBox(height: 12),
+              Text(
                 '$greeting | ${user.username}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                textAlign: isMobileHeader ? TextAlign.left : TextAlign.right,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: mutedText,
                 ),
-              );
-
-              if (isMobileHeader) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    brandHeader,
-                    const SizedBox(height: 14),
-                    greetingText,
-                    const SizedBox(height: 6),
-                    dateChip,
-                  ],
-                );
-              }
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  brandHeader,
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        greetingText,
-                        const SizedBox(height: 6),
-                        dateChip,
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: Theme.of(context)
-                  .primaryColor
-                  .withValues(alpha: isDark ? 0.24 : 0.10),
-            ),
-          ),
-          alignment: Alignment.centerLeft,
-          child: actionButtons,
-        ),
-      ],
+              ),
+              const SizedBox(height: 6),
+              Center(child: dateChip),
+            ],
+          );
+        },
+      ),
     );
   }
 

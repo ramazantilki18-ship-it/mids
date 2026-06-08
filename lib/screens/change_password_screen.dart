@@ -13,16 +13,16 @@ class ChangePasswordScreen extends StatelessWidget {
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            const TextField(decoration: InputDecoration(labelText: 'Yeni Åifre', border: OutlineInputBorder()), obscureText: true),
+            const TextField(decoration: InputDecoration(labelText: 'Yeni Şifre', border: OutlineInputBorder()), obscureText: true),
             const SizedBox(height: 16),
-            const TextField(decoration: InputDecoration(labelText: 'Yeni Åifre (Tekrar)', border: OutlineInputBorder()), obscureText: true),
+            const TextField(decoration: InputDecoration(labelText: 'Yeni Şifre (Tekrar)', border: OutlineInputBorder()), obscureText: true),
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Åifreniz başarıyla değiştirildi.')));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Şifreniz başarıyla değiştirildi.')));
                 context.pop();
               },
-              child: const Text('Åifreyi Güncelle'),
+              child: const Text('Şifreyi Güncelle'),
             ),
           ],
         ),

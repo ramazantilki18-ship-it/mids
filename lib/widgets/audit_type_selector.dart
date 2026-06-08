@@ -67,15 +67,27 @@ class AuditTypeSelector extends StatelessWidget {
 
   Color _colorForType(AuditTypeModel type, int index) {
     const palette = [
-      Color(0xFF0F766E),
-      Color(0xFF1D4ED8),
+      Color(0xFF2563EB),
+      Color(0xFF10B981),
       Color(0xFF7C3AED),
+      Color(0xFFF59E0B),
+      Color(0xFF06B6D4),
+      Color(0xFFEF4444),
+      Color(0xFF14B8A6),
+      Color(0xFFDB2777),
+      Color(0xFF0F766E),
+      Color(0xFF9333EA),
+      Color(0xFFEA580C),
+      Color(0xFF0891B2),
+      Color(0xFF65A30D),
       Color(0xFFBE123C),
-      Color(0xFFB45309),
-      Color(0xFF0369A1),
-      Color(0xFF15803D),
     ];
-    final hash = type.id.codeUnits.fold<int>(index, (value, unit) => value + unit);
+    final key = type.id;
+    int hash = 0;
+    for (int i = 0; i < key.length; i++) {
+      hash = ((hash << 5) - hash) + key.codeUnitAt(i);
+      hash = hash.toSigned(32);
+    }
     return palette[hash.abs() % palette.length];
   }
 }
@@ -115,7 +127,7 @@ class _AuditTypePill extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        width: dense ? 164 : 208,
+        width: dense ? 134 : 172,
         padding: EdgeInsets.symmetric(horizontal: dense ? 12 : 14, vertical: dense ? 10 : 12),
         decoration: BoxDecoration(
           color: selected ? null : cardColor,
@@ -131,16 +143,6 @@ class _AuditTypePill extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: dense ? 34 : 38,
-              height: dense ? 34 : 38,
-              decoration: BoxDecoration(
-                color: selected ? Colors.white.withValues(alpha: 0.18) : color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(_iconForType(auditType), color: selected ? Colors.white : color, size: dense ? 18 : 20),
-            ),
-            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,13 +169,5 @@ class _AuditTypePill extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  IconData _iconForType(AuditTypeModel type) {
-    if (type.allowedAnswerTypes.contains(AnswerType.boolean)) return Icons.fact_check_rounded;
-    if (type.scoringStrategy == ScoringStrategy.none) return Icons.article_rounded;
-    if (type.scoringStrategy == ScoringStrategy.mixedWeighted) return Icons.tune_rounded;
-    if (type.scoringStrategy == ScoringStrategy.quizAccuracy) return Icons.quiz_rounded;
-    return Icons.assignment_turned_in_rounded;
   }
 }
