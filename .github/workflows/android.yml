@@ -17,15 +17,15 @@ steps:
   - name: Setup Java
     uses: actions/setup-java@v4
     with:
-      distribution: temurin
-      java-version: 17
+      distribution: 'temurin'
+      java-version: '17'
 
   - name: Setup Flutter
     uses: subosito/flutter-action@v2
     with:
-      flutter-version: stable
+      flutter-version: '3.22.2'
 
-  - name: Install dependencies
+  - name: Install packages
     run: flutter pub get
 
   - name: Build APK
