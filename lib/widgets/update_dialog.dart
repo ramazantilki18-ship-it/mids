@@ -24,7 +24,9 @@ class _UpdateDialogState extends State<UpdateDialog> {
     });
 
     try {
-      UpdateService.instance.startOtaUpdate(widget.updateInfo.downloadUrl).listen(
+      final cleanVersion = widget.updateInfo.latestVersion.replaceAll('.', '_').replaceAll('+', '_');
+      final filename = 'app_$cleanVersion.apk';
+      UpdateService.instance.startOtaUpdate(widget.updateInfo.downloadUrl, filename: filename).listen(
         (OtaEvent event) {
           switch (event.status) {
             case OtaStatus.DOWNLOADING:

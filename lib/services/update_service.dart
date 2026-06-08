@@ -80,10 +80,10 @@ class UpdateService {
   }
 
   /// OTA Güncellemeyi (arka planda indirme ve kurmayı) başlatır
-  Stream<OtaEvent> startOtaUpdate(String downloadUrl) {
+  Stream<OtaEvent> startOtaUpdate(String downloadUrl, {String? filename}) {
     return OtaUpdate().execute(
       downloadUrl,
-      destinationFilename: UpdateConfig.apkFileName,
+      destinationFilename: filename ?? UpdateConfig.apkFileName,
     );
   }
 
