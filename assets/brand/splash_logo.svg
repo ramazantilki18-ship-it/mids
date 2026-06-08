@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-label="Metro Ä°stanbul splash logo">
+  <rect width="1200" height="620" fill="none"/>
+  <g transform="translate(460 40) scale(5.85)">
+  <polygon fill="#001e61" points="23.87 13.89 0 0.4 0 27.31 10.13 33.01 10.13 16.15 23.86 23.77 37.61 16.15 37.61 33.01 47.74 27.31 47.74 0.4 23.87 13.89"/>
+  <polygon fill="#021d49" points="23.87 13.89 23.87 23.77 37.61 16.15 37.61 33.01 47.74 27.31 47.74 0.4 23.87 13.89"/>
+  <polygon fill="#b2292e" points="47.74 34.83 23.87 48.12 0 34.83 0 46.45 23.86 60.07 23.86 60.07 23.87 60.07 23.87 60.07 23.87 60.07 47.74 46.45 47.74 34.83"/>
+  <polygon fill="#d7282f" points="23.87 48.12 23.87 48.12 0 34.83 0 46.45 23.86 60.07 23.86 60.07 23.87 60.07 23.87 48.12"/>
+</g>
+  <text x="600" y="450" fill="#ffffff" font-family="Arial, sans-serif" font-size="72" font-weight="900" text-anchor="middle" letter-spacing="2">METRO Ä°STANBUL</text>
+  <rect x="390" y="495" width="420" height="8" rx="4" fill="#d7282f"/>
+  <text x="600" y="558" fill="#ffffff" opacity=".86" font-family="Arial, sans-serif" font-size="30" font-weight="800" text-anchor="middle" letter-spacing="5">DENETIM SISTEMI</text>
+</svg>

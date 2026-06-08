@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="768" viewBox="0 0 768 768" role="img" aria-label="Metro Istanbul M symbol">
+  <rect width="768" height="768" fill="none"/>
+  <g id="metro-m">
+  <path d="M132 600V168h118l134 238 134-238h118v432h-104V344L424 528h-80L236 344v256z" fill="#071A33"/>
+  <path d="M270 168h92l22 40 22-40h92L424 304h-80z" fill="#E31E24"/>
+  <path d="M132 638h504v48H132z" fill="#E31E24"/>
+</g>
+</svg>

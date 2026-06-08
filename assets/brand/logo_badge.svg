@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900" viewBox="0 0 900 900" role="img" aria-label="Metro Ä°stanbul badge logo">
+  <rect width="900" height="900" fill="none"/>
+  <circle cx="450" cy="450" r="380" fill="#ffffff"/>
+  <circle cx="450" cy="450" r="342" fill="none" stroke="#001e61" stroke-width="16"/>
+  <g transform="translate(236 96) scale(9.0)">
+  <polygon fill="#001e61" points="23.87 13.89 0 0.4 0 27.31 10.13 33.01 10.13 16.15 23.86 23.77 37.61 16.15 37.61 33.01 47.74 27.31 47.74 0.4 23.87 13.89"/>
+  <polygon fill="#021d49" points="23.87 13.89 23.87 23.77 37.61 16.15 37.61 33.01 47.74 27.31 47.74 0.4 23.87 13.89"/>
+  <polygon fill="#b2292e" points="47.74 34.83 23.87 48.12 0 34.83 0 46.45 23.86 60.07 23.86 60.07 23.87 60.07 23.87 60.07 23.87 60.07 47.74 46.45 47.74 34.83"/>
+  <polygon fill="#d7282f" points="23.87 48.12 23.87 48.12 0 34.83 0 46.45 23.86 60.07 23.86 60.07 23.87 60.07 23.87 48.12"/>
+</g>
+  <text x="450" y="780" fill="#001e61" font-family="Arial, sans-serif" font-size="42" font-weight="900" text-anchor="middle" letter-spacing="4">DENETIM</text>
+</svg>
