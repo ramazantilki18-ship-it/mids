@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/metro_brand_header.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -24,6 +25,7 @@ class _LoginScreenState extends State<LoginScreen>
   bool _obscurePassword = true;
   bool _isLoading = false;
   bool _isResettingPassword = false;
+  String _version = '';
 
   late AnimationController _fadeController;
   late AnimationController _pulseController;
@@ -35,6 +37,7 @@ class _LoginScreenState extends State<LoginScreen>
   void initState() {
     super.initState();
     _loadSavedLogin();
+    _loadVersionInfo();
 
     _fadeController = AnimationController(
       vsync: this,
@@ -71,6 +74,15 @@ class _LoginScreenState extends State<LoginScreen>
     _fadeController.dispose();
     _pulseController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadVersionInfo() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      setState(() {
+        _version = 'v${packageInfo.version} (${packageInfo.buildNumber})';
+      });
+    } catch (_) {}
   }
 
   Future<void> _loadSavedLogin() async {
@@ -773,6 +785,17 @@ class _LoginScreenState extends State<LoginScreen>
               letterSpacing: 0.5,
             ),
           ),
+          if (_version.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              _version,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.white.withValues(alpha: 0.35),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ],
       ),
     );

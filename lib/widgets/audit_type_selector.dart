@@ -43,24 +43,28 @@ class AuditTypeSelector extends StatelessWidget {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       physics: const BouncingScrollPhysics(),
-      child: Row(
-        children: auditTypes.asMap().entries.map((entry) {
-          final index = entry.key;
-          final type = entry.value;
-          final selected = type.id == selectedAuditTypeId;
-          final color = _colorForType(type, index);
-          return Padding(
-            padding: EdgeInsets.only(right: index == auditTypes.length - 1 ? 0 : 10),
-            child: _AuditTypePill(
-              auditType: type,
-              color: color,
-              selected: selected,
-              dense: dense,
-              onDark: onDark,
-              onTap: () => onChanged(type.id),
-            ),
-          );
-        }).toList(),
+      clipBehavior: Clip.none,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 2),
+        child: Row(
+          children: auditTypes.asMap().entries.map((entry) {
+            final index = entry.key;
+            final type = entry.value;
+            final selected = type.id == selectedAuditTypeId;
+            final color = _colorForType(type, index);
+            return Padding(
+              padding: EdgeInsets.only(right: index == auditTypes.length - 1 ? 0 : 10),
+              child: _AuditTypePill(
+                auditType: type,
+                color: color,
+                selected: selected,
+                dense: dense,
+                onDark: onDark,
+                onTap: () => onChanged(type.id),
+              ),
+            );
+          }).toList(),
+        ),
       ),
     );
   }

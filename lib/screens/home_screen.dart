@@ -95,17 +95,17 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(
-            20, MediaQuery.of(context).padding.top + 20, 20, 20),
+            14, MediaQuery.of(context).padding.top + 12, 14, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildPremiumTopHeader(context, user, systemProvider),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
 
             _buildAnnouncementPanel(context, activeAnnouncements),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
 
             if (user.role == UserRole.executiveViewerGlobal ||
                 user.role == UserRole.executiveViewerRestricted)
@@ -113,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
             else
               _buildPlannedTasksPanel(context, myCurrentMonthTasks),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
 
             // Denetim Başlat / Devam Et Butonları
             if (auditProvider.currentAudit != null &&
@@ -224,14 +224,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
             ],
             if (user.role != UserRole.executiveViewerGlobal &&
                 user.role != UserRole.executiveViewerRestricted)
               _buildEmbeddedStartAuditForm(
                   context, user, systemProvider, auditProvider),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -286,18 +286,18 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     final dateChip = Container(
-      height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      height: 24,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: Theme.of(context)
             .primaryColor
-            .withValues(alpha: isDark ? 0.18 : 0.06),
+            .withValues(alpha: isDark ? 0.14 : 0.05),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
           color: Theme.of(context)
               .primaryColor
-              .withValues(alpha: isDark ? 0.24 : 0.10),
+              .withValues(alpha: isDark ? 0.20 : 0.08),
         ),
       ),
       child: Text(
@@ -305,8 +305,8 @@ class _HomeScreenState extends State<HomeScreen> {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
           color: Theme.of(context).primaryColor,
         ),
       ),
@@ -355,7 +355,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
         color: surface,
         borderRadius: BorderRadius.circular(18),
@@ -374,42 +374,39 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isSmall = constraints.maxWidth < 360;
-          return Column(
-            mainAxisSize: MainAxisSize.min,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              if (isSmall) ...[
-                Center(child: brandHeader),
-                const SizedBox(height: 10),
-                Center(child: actionButtons),
-              ] else ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    brandHeader,
-                    actionButtons,
-                  ],
-                ),
-              ],
-              const SizedBox(height: 12),
-              Text(
-                '$greeting | ${user.username}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: mutedText,
+              brandHeader,
+              actionButtons,
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  '$greeting | ${user.username}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: mutedText,
+                  ),
                 ),
               ),
-              const SizedBox(height: 6),
-              Center(child: dateChip),
+              const SizedBox(width: 8),
+              dateChip,
             ],
-          );
-        },
+          ),
+        ],
       ),
     );
   }
@@ -506,7 +503,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: surface,
         borderRadius: BorderRadius.circular(18),
@@ -570,7 +567,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           if (tasks.isEmpty)
             Container(
               width: double.infinity,
@@ -612,8 +609,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(13),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: isDark
             ? Colors.white.withValues(alpha: 0.04)
@@ -977,7 +974,7 @@ class _HomeScreenState extends State<HomeScreen> {
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 12),
+           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             value: selectedLineValue,
             dropdownColor: Theme.of(context).cardTheme.color,
@@ -1003,7 +1000,7 @@ class _HomeScreenState extends State<HomeScreen> {
               });
             },
           ),
-          const SizedBox(height: 10),
+           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             value: selectedStationValue,
             dropdownColor: Theme.of(context).cardTheme.color,
@@ -1024,14 +1021,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 .toList(),
             onChanged: (val) => setState(() => _selectedStation = val),
           ),
-          const SizedBox(height: 10),
+           const SizedBox(height: 8),
           _buildDropdownLabel('Denetim Tipi'),
           AuditTypeSelector(
             auditTypes: activeAuditTypes,
             selectedAuditTypeId: selectedAuditTypeValue,
             onChanged: (val) => setState(() => _selectedAuditTypeId = val),
           ),
-          const SizedBox(height: 14),
+           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             height: 42,
