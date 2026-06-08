@@ -43,7 +43,6 @@ class AuditTypeSelector extends StatelessWidget {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       physics: const BouncingScrollPhysics(),
-      clipBehavior: Clip.none,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 2),
         child: Row(
