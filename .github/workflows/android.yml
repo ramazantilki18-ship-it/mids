@@ -1,0 +1,39 @@
+name: Build APK
+
+on:
+push:
+branches:
+- main
+
+jobs:
+build:
+runs-on: ubuntu-latest
+
+```
+steps:
+  - name: Projeyi çek
+    uses: actions/checkout@v4
+
+  - name: Java kur
+    uses: actions/setup-java@v4
+    with:
+      distribution: 'temurin'
+      java-version: '17'
+
+  - name: Flutter kur
+    uses: subosito/flutter-action@v2
+    with:
+      flutter-version: 'stable'
+
+  - name: Paketleri yükle
+    run: flutter pub get
+
+  - name: APK oluştur
+    run: flutter build apk --release
+
+  - name: APK yükle
+    uses: actions/upload-artifact@v4
+    with:
+      name: release-apk
+      path: build/app/outputs/flutter-apk/app-release.apk
+```
