@@ -1,0 +1,23 @@
+name: Flutter APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.2'
+
+      - name: Dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
