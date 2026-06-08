@@ -2,10 +2,10 @@
 
 class UpdateConfig {
   // GitHub kullanıcı adınız
-  static const String githubOwner = 'ramazan-tilki';
+  static const String githubOwner = 'ramazantilki18-ship-it';
 
   // GitHub repository (depo) adınız
-  static const String githubRepo = 'denetim-sistemi';
+  static const String githubRepo = 'mids';
 
   // GitHub Release içerisindeki indirilecek APK dosyasının adı
   // (flutter build apk --release --split-per-abi komutuyla üretilen en yaygın APK dosyasının adı)

@@ -19,3 +19,7 @@
 -dontwarn javax.annotation.**
 -dontwarn org.checkerframework.**
 -dontwarn org.codehaus.mojo.animalsniffer.**
+
+# Keep ota_update classes
+-keep class sk.fourq.otaupdate.** { *; }
+
