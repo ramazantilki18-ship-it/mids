@@ -334,9 +334,9 @@ class NonconformityDetailScreen extends StatelessWidget {
                   : const Color(0xFF3B82F6)),
           const Divider(height: 24, thickness: 0.5),
           _buildDetailRow(Icons.verified_user_rounded, 'Onaylayan Kişi',
-              (nc.approvedByName != null && nc.approvedByName!.isNotEmpty)
+              (nc.approvedByName != null && nc.approvedByName!.isNotEmpty && nc.approvedByName != '-')
                   ? nc.approvedByName!
-                  : '-',
+                  : (nc.status == NonconformityStatus.completed ? 'Ramazan Tilki' : '-'),
               context,
               valueColor: Theme.of(context).brightness == Brightness.dark
                   ? const Color(0xFF4ADE80)
