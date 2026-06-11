@@ -542,26 +542,31 @@ class SystemProvider extends ChangeNotifier {
         final data = doc.data()!;
         if (data['lineColors'] != null) {
           _linesWithColors.clear();
-          (data['lineColors'] as Map<String, dynamic>).forEach((k, v) {
+          final rawColors = data['lineColors'] as Map;
+          rawColors.forEach((k, v) {
             // Convert web hex (#E31E24) to Flutter format (0xFFE31E24)
             String colorStr = v.toString();
             if (colorStr.startsWith('#')) {
               colorStr = '0xFF${colorStr.substring(1)}';
             }
-            _linesWithColors[k] = colorStr;
+            _linesWithColors[k.toString()] = colorStr;
           });
         }
         if (data['stations'] != null) {
           _stations.clear();
-          (data['stations'] as Map<String, dynamic>).forEach((k, v) {
-            _stations[k] =
-                List<String>.from((v as List).map((e) => e.toString()));
+          final rawStations = data['stations'] as Map;
+          rawStations.forEach((k, v) {
+            if (v is List) {
+              _stations[k.toString()] =
+                  List<String>.from(v.map((e) => e.toString()));
+            }
           });
         }
         if (data['stationNfcs'] != null) {
           _stationNfcs.clear();
-          (data['stationNfcs'] as Map<String, dynamic>).forEach((k, v) {
-            _stationNfcs[k] = v;
+          final rawNfcs = data['stationNfcs'] as Map;
+          rawNfcs.forEach((k, v) {
+            _stationNfcs[k.toString()] = v;
           });
         }
         _savePersistentData();

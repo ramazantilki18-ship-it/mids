@@ -225,7 +225,12 @@ class _StartAuditScreenState extends State<StartAuditScreen> {
                         // NFC Verification Check
                         final nfcKey = '${line}_$station';
                         final nfcData = system.stationNfcs[nfcKey];
-                        final expectedNfcUid = nfcData != null ? nfcData['uid'] as String? : null;
+                        String? expectedNfcUid;
+                        if (nfcData is Map) {
+                          expectedNfcUid = nfcData['uid']?.toString();
+                        } else if (nfcData is String) {
+                          expectedNfcUid = nfcData;
+                        }
 
                         if (expectedNfcUid != null && expectedNfcUid.isNotEmpty) {
                           if (context.mounted) {
