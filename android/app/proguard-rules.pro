@@ -23,3 +23,8 @@
 # Keep ota_update classes
 -keep class sk.fourq.otaupdate.** { *; }
 
+# Keep nfc_manager classes
+-keep class io.flutter.plugins.nfc_manager.** { *; }
+-keep class io.flutter.plugins.nfcmanager.** { *; }
+
+

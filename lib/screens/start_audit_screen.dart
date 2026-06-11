@@ -383,34 +383,49 @@ class NfcVerificationDialogState extends State<NfcVerificationDialog> {
   }
 
   String? _getNfcUid(NfcTag tag) {
-    final Map<String, dynamic> data = tag.data;
-    List<int>? identifier;
-    
-    if (data.containsKey('nfca')) {
-      identifier = data['nfca']?['identifier']?.cast<int>();
-    } else if (data.containsKey('mifare')) {
-      identifier = data['mifare']?['identifier']?.cast<int>();
-    } else if (data.containsKey('nfcb')) {
-      identifier = data['nfcb']?['identifier']?.cast<int>();
-    } else if (data.containsKey('nfcf')) {
-      identifier = data['nfcf']?['identifier']?.cast<int>();
-    } else if (data.containsKey('ndef')) {
-      identifier = data['ndef']?['identifier']?.cast<int>();
-    } else if (data.containsKey('isodep')) {
-      identifier = data['isodep']?['identifier']?.cast<int>();
-    }
-    
-    if (identifier == null) {
-      for (var value in data.values) {
-        if (value is Map && value.containsKey('identifier')) {
-          identifier = value['identifier']?.cast<int>();
-          if (identifier != null) break;
+    try {
+      final Map<String, dynamic> data = tag.data;
+      List<int>? identifier;
+      
+      List<int>? parseIdentifier(dynamic val) {
+        if (val == null) return null;
+        try {
+          if (val is Iterable) {
+            return val.map((e) => int.parse(e.toString())).toList();
+          }
+        } catch (_) {}
+        return null;
+      }
+      
+      if (data.containsKey('nfca')) {
+        identifier = parseIdentifier(data['nfca']?['identifier']);
+      } else if (data.containsKey('mifare')) {
+        identifier = parseIdentifier(data['mifare']?['identifier']);
+      } else if (data.containsKey('nfcb')) {
+        identifier = parseIdentifier(data['nfcb']?['identifier']);
+      } else if (data.containsKey('nfcf')) {
+        identifier = parseIdentifier(data['nfcf']?['identifier']);
+      } else if (data.containsKey('ndef')) {
+        identifier = parseIdentifier(data['ndef']?['identifier']);
+      } else if (data.containsKey('isodep')) {
+        identifier = parseIdentifier(data['isodep']?['identifier']);
+      }
+      
+      if (identifier == null) {
+        for (var value in data.values) {
+          if (value is Map && value.containsKey('identifier')) {
+            identifier = parseIdentifier(value['identifier']);
+            if (identifier != null) break;
+          }
         }
       }
-    }
 
-    if (identifier == null) return null;
-    return identifier.map((e) => e.toRadixString(16).padLeft(2, '0').toUpperCase()).join(':');
+      if (identifier == null) return null;
+      return identifier.map((e) => (e & 0xFF).toRadixString(16).padLeft(2, '0').toUpperCase()).join(':');
+    } catch (e) {
+      debugPrint('NFC UID extraction error: $e');
+      return null;
+    }
   }
 
   bool _compareNfcUids(String a, String b) {
@@ -424,46 +439,64 @@ class NfcVerificationDialogState extends State<NfcVerificationDialog> {
     try {
       bool isAvailable = await NfcManager.instance.isAvailable();
       if (!isAvailable) {
-        setState(() {
-          _isNfcSupported = false;
-          _statusText = 'NFC özelliği kapalı veya desteklenmiyor.';
-          _showManualInput = kDebugMode;
-        });
+        if (mounted) {
+          setState(() {
+            _isNfcSupported = false;
+            _statusText = 'NFC özelliği kapalı veya desteklenmiyor.';
+            _showManualInput = kDebugMode;
+          });
+        }
         return;
       }
       
       NfcManager.instance.startSession(
         onDiscovered: (NfcTag tag) async {
-          final uid = _getNfcUid(tag);
-          if (uid != null) {
-            if (_compareNfcUids(uid, widget.expectedUid)) {
-              await NfcManager.instance.stopSession();
-              if (mounted) {
-                Navigator.pop(context, true);
+          try {
+            final uid = _getNfcUid(tag);
+            if (uid != null) {
+              if (_compareNfcUids(uid, widget.expectedUid)) {
+                await NfcManager.instance.stopSession();
+                if (mounted) {
+                  Navigator.pop(context, true);
+                }
+              } else {
+                if (mounted) {
+                  setState(() {
+                    _statusText = 'Hatalı Kart! Lütfen doğru kartı okutun.';
+                  });
+                }
               }
             } else {
+              if (mounted) {
+                setState(() {
+                  _statusText = 'NFC Kart okundu fakat UID alınamadı.';
+                });
+              }
+            }
+          } catch (e) {
+            if (mounted) {
               setState(() {
-                _statusText = 'Hatalı Kart! Lütfen doğru kartı okutun.';
+                _statusText = 'Kart okuma hatası: $e';
               });
             }
-          } else {
-            setState(() {
-              _statusText = 'NFC Kart okundu fakat UID alınamadı.';
-            });
           }
         },
         onError: (error) async {
-          setState(() {
-            _statusText = 'Tarama Hatası: ${error.message}';
-          });
+          if (mounted) {
+            setState(() {
+              _statusText = 'Tarama Hatası: ${error.message}';
+            });
+          }
         }
       );
     } catch (e) {
-      setState(() {
-        _isNfcSupported = false;
-        _statusText = 'NFC oturumu başlatılamadı.';
-        _showManualInput = kDebugMode;
-      });
+      if (mounted) {
+        setState(() {
+          _isNfcSupported = false;
+          _statusText = 'NFC oturumu başlatılamadı.';
+          _showManualInput = kDebugMode;
+        });
+      }
     }
   }
 
