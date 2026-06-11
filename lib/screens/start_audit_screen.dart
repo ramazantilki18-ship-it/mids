@@ -238,7 +238,7 @@ class _StartAuditScreenState extends State<StartAuditScreen> {
                               context: context,
                               barrierDismissible: false,
                               builder: (dialogContext) => _NfcVerificationDialog(
-                                expectedUid: expectedNfcUid,
+                                expectedUid: expectedNfcUid!,
                                 stationName: station,
                               ),
                             );
