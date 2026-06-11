@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import '../models/task_model.dart';
 import '../widgets/audit_type_selector.dart';
 import 'package:nfc_manager/nfc_manager.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 
 class StartAuditScreen extends StatefulWidget {
   final TaskModel? task;
@@ -426,7 +427,7 @@ class NfcVerificationDialogState extends State<NfcVerificationDialog> {
         setState(() {
           _isNfcSupported = false;
           _statusText = 'NFC özelliği kapalı veya desteklenmiyor.';
-          _showManualInput = true;
+          _showManualInput = kDebugMode;
         });
         return;
       }
@@ -461,7 +462,7 @@ class NfcVerificationDialogState extends State<NfcVerificationDialog> {
       setState(() {
         _isNfcSupported = false;
         _statusText = 'NFC oturumu başlatılamadı.';
-        _showManualInput = true;
+        _showManualInput = kDebugMode;
       });
     }
   }
@@ -502,7 +503,7 @@ class NfcVerificationDialogState extends State<NfcVerificationDialog> {
               TextField(
                 controller: _manualController,
                 decoration: InputDecoration(
-                  labelText: 'NFC Kart UID (Manuel Giriş)',
+                  labelText: 'Geliştirici Bypass Kodu',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
@@ -519,7 +520,7 @@ class NfcVerificationDialogState extends State<NfcVerificationDialog> {
               onPressed: () => Navigator.pop(context, false),
               child: const Text('İPTAL', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
             ),
-            if (!_showManualInput && !_isNfcSupported)
+            if (!_showManualInput && !_isNfcSupported && kDebugMode)
               TextButton(
                 onPressed: () => setState(() => _showManualInput = true),
                 child: const Text('MANUEL GİRİŞ', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
