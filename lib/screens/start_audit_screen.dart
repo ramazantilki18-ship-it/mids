@@ -225,12 +225,20 @@ class _StartAuditScreenState extends State<StartAuditScreen> {
                         // NFC Verification Check
                         final nfcKey = '${line}_$station';
                         final nfcData = system.stationNfcs[nfcKey];
+                        debugPrint('--- NFC DEBUG START ---');
+                        debugPrint('line: "$line", station: "$station"');
+                        debugPrint('nfcKey: "$nfcKey"');
+                        debugPrint('nfcData: $nfcData');
+                        debugPrint('All keys in stationNfcs: ${system.stationNfcs.keys.toList()}');
+
                         String? expectedNfcUid;
                         if (nfcData is Map) {
                           expectedNfcUid = nfcData['uid']?.toString();
                         } else if (nfcData is String) {
                           expectedNfcUid = nfcData;
                         }
+                        debugPrint('expectedNfcUid: "$expectedNfcUid"');
+                        debugPrint('--- NFC DEBUG END ---');
 
                         if (expectedNfcUid != null && expectedNfcUid.isNotEmpty) {
                           if (context.mounted) {
