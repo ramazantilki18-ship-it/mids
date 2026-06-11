@@ -245,7 +245,7 @@ class _StartAuditScreenState extends State<StartAuditScreen> {
                             final verified = await showDialog<bool>(
                               context: context,
                               barrierDismissible: false,
-                              builder: (dialogContext) => _NfcVerificationDialog(
+                              builder: (dialogContext) => NfcVerificationDialog(
                                 expectedUid: expectedNfcUid!,
                                 stationName: station,
                               ),
@@ -365,19 +365,19 @@ int _compareTurkish(String a, String b) {
   return cleanA.length.compareTo(cleanB.length);
 }
 
-class _NfcVerificationDialog extends StatefulWidget {
+class NfcVerificationDialog extends StatefulWidget {
   final String expectedUid;
   final String stationName;
-  const _NfcVerificationDialog({
+  const NfcVerificationDialog({
     required this.expectedUid,
     required this.stationName,
   });
 
   @override
-  State<_NfcVerificationDialog> createState() => _NfcVerificationDialogState();
+  State<NfcVerificationDialog> createState() => NfcVerificationDialogState();
 }
 
-class _NfcVerificationDialogState extends State<_NfcVerificationDialog> {
+class NfcVerificationDialogState extends State<NfcVerificationDialog> {
   bool _isNfcSupported = true;
   String _statusText = 'Lütfen istasyon NFC kartını telefonunuza yaklaştırın.';
   final _manualController = TextEditingController();

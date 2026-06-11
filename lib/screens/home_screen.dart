@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'start_audit_screen.dart';
 import '../providers/auth_provider.dart';
 
 import '../providers/system_provider.dart';
@@ -1086,7 +1087,30 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         );
-                        if (confirm != true) return;
+                      }
+
+                      // NFC Verification Check
+                      final nfcKey = '${line}_$station';
+                      final nfcData = system.stationNfcs[nfcKey];
+                      String? expectedNfcUid;
+                      if (nfcData is Map) {
+                        expectedNfcUid = nfcData['uid']?.toString();
+                      } else if (nfcData is String) {
+                        expectedNfcUid = nfcData;
+                      }
+
+                      if (expectedNfcUid != null && expectedNfcUid.isNotEmpty) {
+                        if (context.mounted) {
+                          final verified = await showDialog<bool>(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (dialogContext) => NfcVerificationDialog(
+                              expectedUid: expectedNfcUid!,
+                              stationName: station,
+                            ),
+                          );
+                          if (verified != true) return;
+                        }
                       }
 
                       auditProvider.startNewAudit(
