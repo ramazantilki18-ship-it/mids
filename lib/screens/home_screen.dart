@@ -737,6 +737,30 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (confirm != true) return;
               }
 
+              // NFC Verification Check
+              final nfcKey = '${task.targetLine}_$station';
+              final nfcData = systemProvider.stationNfcs[nfcKey];
+              String? expectedNfcUid;
+              if (nfcData is Map) {
+                expectedNfcUid = nfcData['uid']?.toString();
+              } else if (nfcData is String) {
+                expectedNfcUid = nfcData;
+              }
+
+              if (expectedNfcUid != null && expectedNfcUid.isNotEmpty) {
+                if (context.mounted) {
+                  final verified = await showDialog<bool>(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (dialogContext) => NfcVerificationDialog(
+                      expectedUid: expectedNfcUid!,
+                      stationName: station,
+                    ),
+                  );
+                  if (verified != true) return;
+                }
+              }
+
               auditProvider.startNewAudit(
                 line: task.targetLine,
                 station: station,
