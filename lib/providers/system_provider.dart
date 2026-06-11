@@ -568,6 +568,7 @@ class SystemProvider extends ChangeNotifier {
           rawNfcs.forEach((k, v) {
             _stationNfcs[k.toString()] = v;
           });
+          debugPrint('FIRESTORE: lines_stations NFC sync (${_stationNfcs.length} stations)');
         }
         _savePersistentData();
         notifyListeners();
