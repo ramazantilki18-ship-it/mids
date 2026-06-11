@@ -326,6 +326,22 @@ class NonconformityDetailScreen extends StatelessWidget {
           const Divider(height: 24, thickness: 0.5),
           _buildDetailRow(Icons.badge_rounded, 'Sorumlu Görev',
               nc.responsiblePerson, context),
+          if (nc.closedByName != null && nc.closedByName!.isNotEmpty) ...[
+            const Divider(height: 24, thickness: 0.5),
+            _buildDetailRow(Icons.person_rounded, 'Kapatan Kişi',
+                nc.closedByName!, context,
+                valueColor: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF60A5FA)
+                    : const Color(0xFF3B82F6)),
+          ],
+          if (nc.approvedByName != null && nc.approvedByName!.isNotEmpty) ...[
+            const Divider(height: 24, thickness: 0.5),
+            _buildDetailRow(Icons.verified_user_rounded, 'Onaylayan Kişi',
+                nc.approvedByName!, context,
+                valueColor: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF4ADE80)
+                    : const Color(0xFF16A34A)),
+          ],
           const Divider(height: 24, thickness: 0.5),
           Text('DÜZELTME AÇIKLAMASI:',
               style: TextStyle(
@@ -366,9 +382,10 @@ class NonconformityDetailScreen extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () {
+                      final userName = context.read<AuthProvider>().user?.name ?? '';
                       context
                           .read<NonconformityProvider>()
-                          .approveNonconformity(nc.id);
+                          .approveNonconformity(nc.id, approvedByName: userName);
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                           content: Text('Uygunsuzluk onaylandı ve kapatıldı.'),
                           backgroundColor: Colors.green));

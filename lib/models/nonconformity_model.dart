@@ -32,6 +32,8 @@ class NonconformityModel {
   final String? closureComment;
   final List<String> closurePhotoPaths;
   final DateTime? closureDate;
+  final String? closedByName;
+  final String? approvedByName;
 
   NonconformityModel({
     required this.id,
@@ -53,6 +55,8 @@ class NonconformityModel {
     this.closureComment,
     this.closurePhotoPaths = const [],
     this.closureDate,
+    this.closedByName,
+    this.approvedByName,
   });
 
   // Ekranlardaki isimlendirmelerle uyumluluk için getterlar
@@ -67,6 +71,8 @@ class NonconformityModel {
     DateTime? closureDate,
     String? auditorName,
     String? responsiblePerson,
+    String? closedByName,
+    String? approvedByName,
   }) {
     return NonconformityModel(
       id: id,
@@ -88,6 +94,8 @@ class NonconformityModel {
       closureComment: closureComment ?? this.closureComment,
       closurePhotoPaths: closurePhotoPaths ?? this.closurePhotoPaths,
       closureDate: closureDate ?? this.closureDate,
+      closedByName: closedByName ?? this.closedByName,
+      approvedByName: approvedByName ?? this.approvedByName,
     );
   }
 
@@ -112,6 +120,8 @@ class NonconformityModel {
       'closureComment': closureComment,
       'closurePhotoPaths': closurePhotoPaths,
       'closureDate': closureDate?.toIso8601String(),
+      'closedByName': closedByName,
+      'approvedByName': approvedByName,
     };
   }
 
@@ -139,6 +149,8 @@ class NonconformityModel {
       closureComment: map['closureComment'],
       closurePhotoPaths: List<String>.from(map['closurePhotoPaths'] ?? []),
       closureDate: map['closureDate'] != null ? DateTime.tryParse(map['closureDate'].toString()) : null,
+      closedByName: map['closedByName']?.toString(),
+      approvedByName: map['approvedByName']?.toString(),
     );
   }
 

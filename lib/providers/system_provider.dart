@@ -21,6 +21,7 @@ class SystemProvider extends ChangeNotifier {
   final Map<String, String> _linesWithColors =
       Map.from(MockData.linesWithColors);
   final Map<String, List<String>> _stations = Map.from(MockData.stations);
+  final Map<String, dynamic> _stationNfcs = {};
   final List<UserModel> _users = List.from(MockData.users);
   List<TaskModel> _tasks = [];
   final List<AnnouncementModel> _announcements = [];
@@ -38,6 +39,7 @@ class SystemProvider extends ChangeNotifier {
   // GETTERS
   List<String> get lines => _linesWithColors.keys.toList();
   Map<String, List<String>> get stations => _stations;
+  Map<String, dynamic> get stationNfcs => _stationNfcs;
 
   // Hat rengi alma
   Color getLineColor(String line) {
@@ -556,6 +558,12 @@ class SystemProvider extends ChangeNotifier {
                 List<String>.from((v as List).map((e) => e.toString()));
           });
         }
+        if (data['stationNfcs'] != null) {
+          _stationNfcs.clear();
+          (data['stationNfcs'] as Map<String, dynamic>).forEach((k, v) {
+            _stationNfcs[k] = v;
+          });
+        }
         _savePersistentData();
         notifyListeners();
       } else {
@@ -582,6 +590,7 @@ class SystemProvider extends ChangeNotifier {
       'lineColors': webColors,
       'lines': _linesWithColors.keys.toList(),
       'stations': _stations,
+      'stationNfcs': _stationNfcs,
     });
   }
 
@@ -602,6 +611,7 @@ class SystemProvider extends ChangeNotifier {
         'lineColors': webColors,
         'lines': _linesWithColors.keys.toList(),
         'stations': _stations,
+        'stationNfcs': _stationNfcs,
       });
     } catch (e) {
       debugPrint('Save lines/stations to Firebase error: $e');
@@ -660,6 +670,7 @@ class SystemProvider extends ChangeNotifier {
       final linesJson = prefs.getString('lines_with_colors_json');
       final stationsJson = prefs.getString('stations_json');
       final usersJson = prefs.getString('users_json');
+      final stationNfcsJson = prefs.getString('station_nfcs_json');
 
       if (linesJson != null) {
         final Map<String, dynamic> decoded = jsonDecode(linesJson);
@@ -676,6 +687,12 @@ class SystemProvider extends ChangeNotifier {
           _stations[k] =
               List<String>.from((v as List).map((e) => e.toString()));
         });
+      }
+
+      if (stationNfcsJson != null) {
+        final Map<String, dynamic> decoded = jsonDecode(stationNfcsJson);
+        _stationNfcs.clear();
+        _stationNfcs.addAll(decoded);
       }
 
       if (usersJson != null) {
@@ -698,6 +715,8 @@ class SystemProvider extends ChangeNotifier {
       await prefs.setString(
           'lines_with_colors_json', jsonEncode(_linesWithColors));
       await prefs.setString('stations_json', jsonEncode(_stations));
+      await prefs.setString(
+          'station_nfcs_json', jsonEncode(_stationNfcs));
       await prefs.setString(
           'users_json', jsonEncode(_users.map((u) => u.toJson()).toList()));
     } catch (e) {

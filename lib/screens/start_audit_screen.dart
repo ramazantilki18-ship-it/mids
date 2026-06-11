@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 
 import '../models/task_model.dart';
 import '../widgets/audit_type_selector.dart';
+import 'package:nfc_manager/nfc_manager.dart';
 
 class StartAuditScreen extends StatefulWidget {
   final TaskModel? task;
@@ -221,6 +222,25 @@ class _StartAuditScreenState extends State<StartAuditScreen> {
                           if (confirm != true) return;
                         }
 
+                        // NFC Verification Check
+                        final nfcKey = '${line}_$station';
+                        final nfcData = system.stationNfcs[nfcKey];
+                        final expectedNfcUid = nfcData != null ? nfcData['uid'] as String? : null;
+
+                        if (expectedNfcUid != null && expectedNfcUid.isNotEmpty) {
+                          if (context.mounted) {
+                            final verified = await showDialog<bool>(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (dialogContext) => _NfcVerificationDialog(
+                                expectedUid: expectedNfcUid,
+                                stationName: station,
+                              ),
+                            );
+                            if (verified != true) return;
+                          }
+                        }
+
                         auditProvider.startNewAudit(
                           line: line,
                           station: station,
@@ -331,3 +351,200 @@ int _compareTurkish(String a, String b) {
   }
   return cleanA.length.compareTo(cleanB.length);
 }
+
+class _NfcVerificationDialog extends StatefulWidget {
+  final String expectedUid;
+  final String stationName;
+  const _NfcVerificationDialog({
+    required this.expectedUid,
+    required this.stationName,
+  });
+
+  @override
+  State<_NfcVerificationDialog> createState() => _NfcVerificationDialogState();
+}
+
+class _NfcVerificationDialogState extends State<_NfcVerificationDialog> {
+  bool _isNfcSupported = true;
+  String _statusText = 'Lütfen istasyon NFC kartını telefonunuza yaklaştırın.';
+  final _manualController = TextEditingController();
+  bool _showManualInput = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startNfcSession();
+  }
+
+  String? _getNfcUid(NfcTag tag) {
+    final Map<String, dynamic> data = tag.data;
+    List<int>? identifier;
+    
+    if (data.containsKey('nfca')) {
+      identifier = data['nfca']?['identifier']?.cast<int>();
+    } else if (data.containsKey('mifare')) {
+      identifier = data['mifare']?['identifier']?.cast<int>();
+    } else if (data.containsKey('nfcb')) {
+      identifier = data['nfcb']?['identifier']?.cast<int>();
+    } else if (data.containsKey('nfcf')) {
+      identifier = data['nfcf']?['identifier']?.cast<int>();
+    } else if (data.containsKey('ndef')) {
+      identifier = data['ndef']?['identifier']?.cast<int>();
+    } else if (data.containsKey('isodep')) {
+      identifier = data['isodep']?['identifier']?.cast<int>();
+    }
+    
+    if (identifier == null) {
+      for (var value in data.values) {
+        if (value is Map && value.containsKey('identifier')) {
+          identifier = value['identifier']?.cast<int>();
+          if (identifier != null) break;
+        }
+      }
+    }
+
+    if (identifier == null) return null;
+    return identifier.map((e) => e.toRadixString(16).padLeft(2, '0').toUpperCase()).join(':');
+  }
+
+  bool _compareNfcUids(String a, String b) {
+    String normalize(String s) => s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    return normalize(a) == normalize(b);
+  }
+
+  Future<void> _startNfcSession() async {
+    try {
+      bool isAvailable = await NfcManager.instance.isAvailable();
+      if (!isAvailable) {
+        setState(() {
+          _isNfcSupported = false;
+          _statusText = 'NFC özelliği kapalı veya desteklenmiyor.';
+          _showManualInput = true;
+        });
+        return;
+      }
+      
+      NfcManager.instance.startSession(
+        onDiscovered: (NfcTag tag) async {
+          final uid = _getNfcUid(tag);
+          if (uid != null) {
+            if (_compareNfcUids(uid, widget.expectedUid)) {
+              await NfcManager.instance.stopSession();
+              if (mounted) {
+                Navigator.pop(context, true);
+              }
+            } else {
+              setState(() {
+                _statusText = 'Hatalı Kart!\nOkunan: $uid\nBeklenen: ${widget.expectedUid}';
+              });
+            }
+          } else {
+            setState(() {
+              _statusText = 'NFC Kart okundu fakat UID alınamadı.';
+            });
+          }
+        },
+        onError: (error) async {
+          setState(() {
+            _statusText = 'Tarama Hatası: ${error.message}';
+          });
+        }
+      );
+    } catch (e) {
+      setState(() {
+        _isNfcSupported = false;
+        _statusText = 'NFC oturumu başlatılamadı.';
+        _showManualInput = true;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    NfcManager.instance.stopSession().catchError((_) {});
+    _manualController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      title: Column(
+        children: [
+          Icon(Icons.nfc_rounded, size: 48, color: _isNfcSupported ? AppColors.primary : Colors.grey),
+          const SizedBox(height: 12),
+          Text(
+            '${widget.stationName} NFC Doğrulama',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _statusText,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, height: 1.4),
+            ),
+            if (_showManualInput) ...[
+              const SizedBox(height: 20),
+              TextField(
+                controller: _manualController,
+                decoration: InputDecoration(
+                  labelText: 'NFC Kart UID (Manuel Giriş)',
+                  hintText: 'Örn: ${widget.expectedUid}',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Beklenen: ${widget.expectedUid}',
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      actions: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('İPTAL', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+            ),
+            if (!_showManualInput)
+              TextButton(
+                onPressed: () => setState(() => _showManualInput = true),
+                child: const Text('MANUEL GİRİŞ', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+              )
+            else
+              ElevatedButton(
+                onPressed: () {
+                  if (_compareNfcUids(_manualController.text.trim(), widget.expectedUid)) {
+                    Navigator.pop(context, true);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Girdiğiniz kod hatalı!')),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('DOĞRULA'),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+

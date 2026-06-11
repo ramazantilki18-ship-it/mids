@@ -226,7 +226,7 @@ class NonconformityProvider extends ChangeNotifier {
     await FirebaseFirestore.instance.collection('nonconformities').doc(nc.id).set(nc.toMap());
   }
 
-  Future<void> closeNonconformity(String id, String comment, List<String> photoPaths) async {
+  Future<void> closeNonconformity(String id, String comment, List<String> photoPaths, {String? closedByName}) async {
     final doc = await FirebaseFirestore.instance.collection('nonconformities').doc(id).get();
     final nc = doc.exists && doc.data() != null ? NonconformityModel.fromMap(doc.data()!, doc.id) : null;
     final uploadedPhotoPaths = nc == null
@@ -240,18 +240,26 @@ class NonconformityProvider extends ChangeNotifier {
       throw Exception('Fotoğraf Storage alanına yüklenemedi.');
     }
 
-    await FirebaseFirestore.instance.collection('nonconformities').doc(id).update({
+    final updateData = <String, dynamic>{
       'status': 'waitingControl',
       'closureComment': comment,
       'closurePhotoPaths': uploadedPhotoPaths,
       'closureDate': DateTime.now().toIso8601String(),
-    });
+    };
+    if (closedByName != null && closedByName.isNotEmpty) {
+      updateData['closedByName'] = closedByName;
+    }
+    await FirebaseFirestore.instance.collection('nonconformities').doc(id).update(updateData);
   }
 
-  Future<void> approveNonconformity(String id) async {
-    await FirebaseFirestore.instance.collection('nonconformities').doc(id).update({
+  Future<void> approveNonconformity(String id, {String? approvedByName}) async {
+    final updateData = <String, dynamic>{
       'status': 'completed',
-    });
+    };
+    if (approvedByName != null && approvedByName.isNotEmpty) {
+      updateData['approvedByName'] = approvedByName;
+    }
+    await FirebaseFirestore.instance.collection('nonconformities').doc(id).update(updateData);
   }
 
   Future<void> rejectNonconformity(String id) async {
