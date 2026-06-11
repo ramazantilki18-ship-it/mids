@@ -327,7 +327,7 @@ class NonconformityDetailScreen extends StatelessWidget {
           _buildDetailRow(Icons.person_rounded, 'Kapatan Kişi',
               (nc.closedByName != null && nc.closedByName!.isNotEmpty)
                   ? nc.closedByName!
-                  : 'Henüz belirtilmedi',
+                  : nc.auditorName.isNotEmpty ? nc.auditorName : '-',
               context,
               valueColor: Theme.of(context).brightness == Brightness.dark
                   ? const Color(0xFF60A5FA)
@@ -336,7 +336,7 @@ class NonconformityDetailScreen extends StatelessWidget {
           _buildDetailRow(Icons.verified_user_rounded, 'Onaylayan Kişi',
               (nc.approvedByName != null && nc.approvedByName!.isNotEmpty)
                   ? nc.approvedByName!
-                  : 'Henüz belirtilmedi',
+                  : '-',
               context,
               valueColor: Theme.of(context).brightness == Brightness.dark
                   ? const Color(0xFF4ADE80)
