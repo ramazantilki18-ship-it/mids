@@ -324,9 +324,6 @@ class NonconformityDetailScreen extends StatelessWidget {
                   ? const Color(0xFF4ADE80)
                   : const Color(0xFF16A34A)),
           const Divider(height: 24, thickness: 0.5),
-          _buildDetailRow(Icons.badge_rounded, 'Sorumlu Görev',
-              nc.responsiblePerson, context),
-          const Divider(height: 24, thickness: 0.5),
           _buildDetailRow(Icons.person_rounded, 'Kapatan Kişi',
               (nc.closedByName != null && nc.closedByName!.isNotEmpty)
                   ? nc.closedByName!
