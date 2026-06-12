@@ -163,6 +163,7 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
       _selectedStation = 'Tümü';
       _selectedYear = 'Tümü';
       _selectedMonth = 'Tümü';
+      _selectedAuditor = 'Tümü';
       _sortOption = 'Tarihe Göre (En Yeni)';
       _currentPage = 1;
     });
@@ -265,8 +266,8 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
               clipBehavior: Clip.none,
               children: [
                 Icon(_showFilters
-                    ? Icons.filter_list_off_rounded
-                    : Icons.filter_list_rounded),
+                    ? Icons.filter_alt_off_rounded
+                    : Icons.filter_alt_rounded),
                 if (activeFilters > 0)
                   Positioned(
                     top: -4,
@@ -417,13 +418,15 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
                                       _buildLineLogo(
                                           'Tümü',
                                           const Color(0xFF64748B),
-                                          Colors.white),
+                                          Colors.white,
+                                          true),
                                       ...availableLines
                                           .where((l) => l != 'Tümü')
                                           .map((line) => _buildLineLogo(
                                               line,
                                               _getLineColor(line),
-                                              Colors.white)),
+                                              Colors.white,
+                                              true)),
                                     ],
                                   ),
                                 ),
@@ -790,7 +793,7 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        '${audit.date.day}/${audit.date.month}/${audit.date.year}',
+                        '${audit.date.day.toString().padLeft(2, '0')}/${audit.date.month.toString().padLeft(2, '0')}/${audit.date.year}',
                         style: TextStyle(
                           fontSize: 10,
                           color: Theme.of(context)
@@ -798,6 +801,18 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
                               .onSurface
                               .withOpacity(0.6),
                           fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${audit.date.hour.toString().padLeft(2, '0')}:${audit.date.minute.toString().padLeft(2, '0')}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.5),
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       if (ncCount > 0) ...[
@@ -841,27 +856,34 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
 
   // HAT LOGOSU OLUŞTUR (YUVARLAK)
   Widget _buildLineLogo(String line, Color color,
-      [Color textColor = Colors.white]) {
-    return Container(
+      [Color textColor = Colors.white, bool isInteractive = false]) {
+    final isSelected = !isInteractive || _selectedLines.contains(line);
+
+    Widget content = Container(
       margin: const EdgeInsets.only(right: 8),
       width: 36,
       height: 36,
       decoration: BoxDecoration(
-        color: color,
+        color: isSelected ? color : color.withOpacity(0.35),
         shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: isSelected && isInteractive
+            ? Border.all(color: Colors.white, width: 2)
+            : null,
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: color.withOpacity(0.4),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
       ),
       child: Center(
         child: Text(
           line, // T1, T4, M3 gibi tam hat adı
           style: TextStyle(
-            color: textColor,
+            color: isSelected ? textColor : textColor.withOpacity(0.6),
             fontSize: 10, // Daha küçük font
             fontWeight: FontWeight.w900,
             letterSpacing: 0.3,
@@ -869,6 +891,35 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
         ),
       ),
     );
+
+    if (isInteractive) {
+      return GestureDetector(
+        onTap: () {
+          setState(() {
+            if (line == 'Tümü') {
+              _selectedLines = ['Tümü'];
+            } else {
+              if (_selectedLines.contains('Tümü')) {
+                _selectedLines.remove('Tümü');
+              }
+              if (_selectedLines.contains(line)) {
+                _selectedLines.remove(line);
+                if (_selectedLines.isEmpty) {
+                  _selectedLines = ['Tümü'];
+                }
+              } else {
+                _selectedLines.add(line);
+              }
+            }
+            _selectedStation = 'Tümü';
+            _currentPage = 1;
+          });
+        },
+        child: content,
+      );
+    }
+
+    return content;
   }
 
   Color _getScoreColor(double score) {

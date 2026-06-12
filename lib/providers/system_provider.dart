@@ -22,6 +22,7 @@ class SystemProvider extends ChangeNotifier {
       Map.from(MockData.linesWithColors);
   final Map<String, List<String>> _stations = Map.from(MockData.stations);
   final Map<String, dynamic> _stationNfcs = {};
+  final Map<String, Map<String, int>> _stationNumbers = {};
   final List<UserModel> _users = List.from(MockData.users);
   List<TaskModel> _tasks = [];
   final List<AnnouncementModel> _announcements = [];
@@ -40,6 +41,7 @@ class SystemProvider extends ChangeNotifier {
   List<String> get lines => _linesWithColors.keys.toList();
   Map<String, List<String>> get stations => _stations;
   Map<String, dynamic> get stationNfcs => _stationNfcs;
+  Map<String, Map<String, int>> get stationNumbers => _stationNumbers;
 
   // Hat rengi alma
   Color getLineColor(String line) {
@@ -570,6 +572,19 @@ class SystemProvider extends ChangeNotifier {
           });
           debugPrint('FIRESTORE: lines_stations NFC sync (${_stationNfcs.length} stations)');
         }
+        if (data['stationNumbers'] != null) {
+          _stationNumbers.clear();
+          final rawNumbers = data['stationNumbers'] as Map;
+          rawNumbers.forEach((k, v) {
+            if (v is Map) {
+              final Map<String, int> inner = {};
+              v.forEach((key, val) {
+                inner[key.toString()] = (val as num).toInt();
+              });
+              _stationNumbers[k.toString()] = inner;
+            }
+          });
+        }
         _savePersistentData();
         notifyListeners();
       } else {
@@ -597,6 +612,7 @@ class SystemProvider extends ChangeNotifier {
       'lines': _linesWithColors.keys.toList(),
       'stations': _stations,
       'stationNfcs': _stationNfcs,
+      'stationNumbers': _stationNumbers,
     });
   }
 
@@ -618,6 +634,7 @@ class SystemProvider extends ChangeNotifier {
         'lines': _linesWithColors.keys.toList(),
         'stations': _stations,
         'stationNfcs': _stationNfcs,
+        'stationNumbers': _stationNumbers,
       });
     } catch (e) {
       debugPrint('Save lines/stations to Firebase error: $e');
@@ -701,6 +718,21 @@ class SystemProvider extends ChangeNotifier {
         _stationNfcs.addAll(decoded);
       }
 
+      final stationNumbersJson = prefs.getString('station_numbers_json');
+      if (stationNumbersJson != null) {
+        final Map<String, dynamic> decoded = jsonDecode(stationNumbersJson);
+        _stationNumbers.clear();
+        decoded.forEach((k, v) {
+          if (v is Map) {
+            final Map<String, int> inner = {};
+            v.forEach((key, val) {
+              inner[key.toString()] = (val as num).toInt();
+            });
+            _stationNumbers[k] = inner;
+          }
+        });
+      }
+
       if (usersJson != null) {
         final List<dynamic> decoded = jsonDecode(usersJson);
         _users
@@ -723,6 +755,8 @@ class SystemProvider extends ChangeNotifier {
       await prefs.setString('stations_json', jsonEncode(_stations));
       await prefs.setString(
           'station_nfcs_json', jsonEncode(_stationNfcs));
+      await prefs.setString(
+          'station_numbers_json', jsonEncode(_stationNumbers));
       await prefs.setString(
           'users_json', jsonEncode(_users.map((u) => u.toJson()).toList()));
     } catch (e) {

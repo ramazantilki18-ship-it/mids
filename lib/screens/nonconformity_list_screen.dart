@@ -172,19 +172,23 @@ class _NonconformityListScreenState extends State<NonconformityListScreen>
         .where((nc) =>
             nc.status == NonconformityStatus.open ||
             nc.status == NonconformityStatus.inProgress)
-        .toList();
+        .toList()
+      ..sort((a, b) => b.detectionDate.compareTo(a.detectionDate));
     final overdueNC = filteredNC
         .where((nc) => nc.status == NonconformityStatus.overdue)
-        .toList();
+        .toList()
+      ..sort((a, b) => b.detectionDate.compareTo(a.detectionDate));
     final controlNC = filteredNC
         .where((nc) => nc.status == NonconformityStatus.waitingControl)
-        .toList();
+        .toList()
+      ..sort((a, b) => b.detectionDate.compareTo(a.detectionDate));
     final completedNC = filteredNC
         .where((nc) => nc.status == NonconformityStatus.completed)
         .where((nc) {
       final referenceDate = nc.closureDate ?? nc.detectionDate;
       return DateTime.now().difference(referenceDate).inDays <= 45;
-    }).toList();
+    }).toList()
+      ..sort((a, b) => b.detectionDate.compareTo(a.detectionDate));
 
     Color activeColor;
     switch (_tabController.index) {
@@ -240,166 +244,173 @@ class _NonconformityListScreenState extends State<NonconformityListScreen>
               }),
             ),
         ],
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(_showFilters ? 196 : 116),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                child: AuditTypeSelector(
-                  auditTypes: visibleAuditTypes,
-                  selectedAuditTypeId: selectedAuditTypeId,
-                  dense: true,
-                  onDark: true,
-                  onChanged: _setAuditType,
-                ),
-              ),
-              if (_showFilters) ...[
+      ),
+      body: Column(
+        children: [
+          Container(
+            color: Theme.of(context).appBarTheme.backgroundColor ?? AppColors.primary,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'HAT SEÇİMİ',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      if (_selectedLine != 'Tümü' ||
-                          _selectedCategory != 'Tümü' ||
-                          _searchQuery.isNotEmpty)
-                        GestureDetector(
-                          onTap: () => setState(() {
-                            _selectedLine = 'Tümü';
-                            _selectedCategory = 'Tümü';
-                            _searchController.clear();
-                            _searchQuery = '';
-                            _currentPage = 1;
-                          }),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.filter_alt_off_rounded,
-                                  size: 12, color: Colors.white70),
-                              SizedBox(width: 4),
-                              Text(
-                                'Temizle',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                  child: AuditTypeSelector(
+                    auditTypes: visibleAuditTypes,
+                    selectedAuditTypeId: selectedAuditTypeId,
+                    dense: true,
+                    onDark: true,
+                    onChanged: _setAuditType,
                   ),
                 ),
-                // Horizontal Line Logos Row
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: SizedBox(
-                    height: 38,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: allLines.length,
-                      itemBuilder: (context, index) {
-                        final line = allLines[index];
-                        final isSelected = _selectedLine == line;
-                        final color = line == 'Tümü'
-                            ? const Color(0xFF64748B)
-                            : _getLineColor(line);
-                        return _buildLineLogoButton(line, isSelected, color);
-                      },
+                if (_showFilters) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'HAT SEÇİMİ',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        if (_selectedLine != 'Tümü' ||
+                            _selectedCategory != 'Tümü' ||
+                            _searchQuery.isNotEmpty)
+                          GestureDetector(
+                            onTap: () => setState(() {
+                              _selectedLine = 'Tümü';
+                              _selectedCategory = 'Tümü';
+                              _searchController.clear();
+                              _searchQuery = '';
+                              _currentPage = 1;
+                            }),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.filter_alt_off_rounded,
+                                    size: 12, color: Colors.white70),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Temizle',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Horizontal Line Logos Row
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: SizedBox(
+                      height: 38,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: allLines.length,
+                        itemBuilder: (context, index) {
+                          final line = allLines[index];
+                          final isSelected = _selectedLine == line;
+                          final color = line == 'Tümü'
+                              ? const Color(0xFF64748B)
+                              : _getLineColor(line);
+                          return _buildLineLogoButton(line, isSelected, color);
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+                // TabBar
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardTheme.color,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4))
+                    ],
+                  ),
+                  child: Theme(
+                    data: ThemeData(
+                        highlightColor: Colors.transparent,
+                        splashColor: Colors.transparent),
+                    child: TabBar(
+                      controller: _tabController,
+                      dividerColor: Colors.transparent,
+                      indicator: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: activeColor,
+                        boxShadow: [
+                          BoxShadow(
+                              color: activeColor.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2))
+                        ],
+                      ),
+                      onTap: (index) => setState(() {}),
+                      labelColor: Colors.white,
+                      unselectedLabelColor: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.color
+                          ?.withValues(alpha: 0.5),
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      tabs: [
+                        _buildTab(
+                            'A\u00c7IK',
+                            openNC.length,
+                            _tabController.index == 0
+                                ? Colors.white
+                                : const Color(0xFF3B82F6)),
+                        _buildTab(
+                            'GEC\u0130KEN',
+                            overdueNC.length,
+                            _tabController.index == 1
+                                ? Colors.white
+                                : const Color(0xFFE11D48)),
+                        _buildTab(
+                            'KONTROL',
+                            controlNC.length,
+                            _tabController.index == 2
+                                ? Colors.white
+                                : const Color(0xFFF59E0B)),
+                        _buildTab(
+                            'KAPALI',
+                            completedNC.length,
+                            _tabController.index == 3
+                                ? Colors.white
+                                : const Color(0xFF16A34A)),
+                      ],
                     ),
                   ),
                 ),
               ],
-              // TabBar
-              Container(
-                margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardTheme.color,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4))
-                  ],
-                ),
-                child: Theme(
-                  data: ThemeData(
-                      highlightColor: Colors.transparent,
-                      splashColor: Colors.transparent),
-                  child: TabBar(
-                    controller: _tabController,
-                    dividerColor: Colors.transparent,
-                    indicator: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: activeColor,
-                      boxShadow: [
-                        BoxShadow(
-                            color: activeColor.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2))
-                      ],
-                    ),
-                    onTap: (index) => setState(() {}),
-                    labelColor: Colors.white,
-                    unselectedLabelColor: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.color
-                        ?.withValues(alpha: 0.5),
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    tabs: [
-                      _buildTab(
-                          'A\u00c7IK',
-                          openNC.length,
-                          _tabController.index == 0
-                              ? Colors.white
-                              : const Color(0xFF3B82F6)),
-                      _buildTab(
-                          'GEC\u0130KEN',
-                          overdueNC.length,
-                          _tabController.index == 1
-                              ? Colors.white
-                              : const Color(0xFFE11D48)),
-                      _buildTab(
-                          'KONTROL',
-                          controlNC.length,
-                          _tabController.index == 2
-                              ? Colors.white
-                              : const Color(0xFFF59E0B)),
-                      _buildTab(
-                          'KAPALI',
-                          completedNC.length,
-                          _tabController.index == 3
-                              ? Colors.white
-                              : const Color(0xFF16A34A)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildList(openNC, user),
-          _buildList(overdueNC, user),
-          _buildList(controlNC, user),
-          _buildList(completedNC, user),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildList(openNC, user),
+                _buildList(overdueNC, user),
+                _buildList(controlNC, user),
+                _buildList(completedNC, user),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -541,25 +552,49 @@ class _NonconformityListScreenState extends State<NonconformityListScreen>
                     children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            nc.station,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
-                              color: Theme.of(context).colorScheme.onSurface,
+                          Expanded(
+                            child: Text(
+                              nc.station,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          Text(
-                            DateFormat('dd.MM.yyyy').format(nc.detectionDate),
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.75),
-                              fontWeight: FontWeight.bold,
-                            ),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                DateFormat('dd.MM.yyyy').format(nc.detectionDate),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.75),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                DateFormat('HH:mm').format(nc.detectionDate),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.5),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

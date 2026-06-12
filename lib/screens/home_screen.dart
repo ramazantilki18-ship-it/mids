@@ -941,13 +941,23 @@ class _HomeScreenState extends State<HomeScreen> {
     final selectedStations = selectedLineValue != null
         ? (system.stations[selectedLineValue] ?? <String>[])
         : <String>[];
+    final stationNums = selectedLineValue != null
+        ? (system.stationNumbers[selectedLineValue] ?? <String, int>{})
+        : <String, int>{};
     final visibleStations = ((hasGlobalLineAccess ||
             user.authorizedStations.isEmpty)
         ? List<String>.from(selectedStations)
         : selectedStations
             .where((station) => user.authorizedStations.contains(station))
             .toList())
-      ..sort(_compareTurkish);
+      ..sort((a, b) {
+        final numA = stationNums[a] ?? 999;
+        final numB = stationNums[b] ?? 999;
+        if (numA != numB) {
+          return numA.compareTo(numB);
+        }
+        return _compareTurkish(a, b);
+      });
     final selectedStationValue =
         visibleStations.contains(_selectedStation) ? _selectedStation : null;
 

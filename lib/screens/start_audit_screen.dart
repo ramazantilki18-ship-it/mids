@@ -52,6 +52,9 @@ class _StartAuditScreenState extends State<StartAuditScreen> {
     final selectedStations = selectedLineValue != null
         ? (system.stations[selectedLineValue] ?? <String>[])
         : <String>[];
+    final stationNums = selectedLineValue != null
+        ? (system.stationNumbers[selectedLineValue] ?? <String, int>{})
+        : <String, int>{};
     final visibleStations = ((user == null ||
                 hasGlobalLineAccess ||
                 user.authorizedStations.isEmpty)
@@ -59,7 +62,14 @@ class _StartAuditScreenState extends State<StartAuditScreen> {
             : selectedStations
                 .where((station) => user.authorizedStations.contains(station))
                 .toList())
-      ..sort(_compareTurkish);
+      ..sort((a, b) {
+        final numA = stationNums[a] ?? 999;
+        final numB = stationNums[b] ?? 999;
+        if (numA != numB) {
+          return numA.compareTo(numB);
+        }
+        return _compareTurkish(a, b);
+      });
     final selectedStationValue =
         visibleStations.contains(_selectedStation) ? _selectedStation : null;
 

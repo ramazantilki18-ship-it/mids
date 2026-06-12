@@ -33,6 +33,10 @@ class _ReportScreenState extends State<ReportScreen> {
   String _selectedStatus = 'Tümü';
   String? _selectedAuditTypeId;
   bool _showFilters = false;
+  
+  // Denetçi denetim sayıları listesi için arama ve genişleme durumları
+  bool _showAllAuditors = false;
+  String _auditorSearchQuery = '';
 
   int _activeFilterCount() {
     int count = 0;
@@ -53,6 +57,8 @@ class _ReportScreenState extends State<ReportScreen> {
       _selectedYear = 'Tümü';
       _selectedMonth = 'Tümü';
       _selectedStatus = 'Tümü';
+      _showAllAuditors = false;
+      _auditorSearchQuery = '';
     });
   }
 
@@ -318,9 +324,9 @@ class _ReportScreenState extends State<ReportScreen> {
                     content: _buildLinePerformanceList(filteredAudits),
                   ),
                   _buildReportSection(
-                    title: 'DENETÇİ PERFORMANS ANALİZİ',
-                    subtitle: 'Denetçilerin ortalama puan ve denetim sayıları.',
-                    content: _buildAuditorPerformanceList(filteredAudits),
+                    title: 'DENETÇİ DENETİM SAYILARI',
+                    subtitle: 'Denetçilerin toplam gerçekleştirdiği denetim sayıları.',
+                    content: _buildAuditorAuditCountList(filteredAudits),
                   ),
                   _buildReportSection(
                     title: 'GENEL KATEGORİ BAŞARI ORANLARI',
@@ -378,7 +384,7 @@ class _ReportScreenState extends State<ReportScreen> {
         final q = item.question;
         matrix[a.station]!
             .putIfAbsent(q.categoryName, () => [])
-            .add(ans.score.toDouble());
+            .add(ans.normalizedScore);
       }
     }
 
@@ -429,7 +435,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   return const DataCell(Text('-'));
                 }
                 final avg =
-                    (scores.reduce((a, b) => a + b) / scores.length) * 20;
+                    scores.reduce((a, b) => a + b) / scores.length;
                 return DataCell(
                   Container(
                     padding:
@@ -466,7 +472,7 @@ class _ReportScreenState extends State<ReportScreen> {
         final q = item.question;
         matrix[a.line]!
             .putIfAbsent(q.categoryName, () => [])
-            .add(ans.score.toDouble());
+            .add(ans.normalizedScore);
       }
     }
 
@@ -506,7 +512,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   return const DataCell(Text('-'));
                 }
                 final avg =
-                    (scores.reduce((a, b) => a + b) / scores.length) * 20;
+                    scores.reduce((a, b) => a + b) / scores.length;
                 return DataCell(
                   Container(
                     padding:
@@ -825,7 +831,7 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  Widget _buildAuditorPerformanceList(List<AuditModel> audits) {
+  Widget _buildAuditorAuditCountList(List<AuditModel> audits) {
     if (audits.isEmpty) return const SizedBox();
 
     final Map<String, List<AuditModel>> auditorGroups = {};
@@ -835,8 +841,6 @@ class _ReportScreenState extends State<ReportScreen> {
 
     final performance = auditorGroups.entries.map((e) {
       final userAudits = e.value;
-      final avg =
-          userAudits.fold(0.0, (sum, a) => sum + a.score) / userAudits.length;
       final firstAudit = userAudits.first;
       final userModel = MockData.users.firstWhere(
           (u) => u.id == firstAudit.auditorId,
@@ -844,145 +848,210 @@ class _ReportScreenState extends State<ReportScreen> {
 
       return {
         'name': e.key,
-        'avg': avg,
         'count': userAudits.length,
         'title': userModel.title,
         'lines': userModel.authorizedLines.join(', '),
       };
     }).toList()
-      ..sort((a, b) => (b['avg'] as double).compareTo(a['avg'] as double));
+      ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
 
-    return SizedBox(
-      height: 270,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: performance.asMap().entries.map((entry) {
+    final maxCount = performance.isNotEmpty ? performance.first['count'] as int : 1;
+
+    // Arama filtrelemesi
+    final filteredList = performance.where((p) {
+      if (_auditorSearchQuery.isEmpty) return true;
+      final name = (p['name'] as String).toLowerCase();
+      final title = (p['title'] as String).toLowerCase();
+      final query = _auditorSearchQuery.toLowerCase();
+      return name.contains(query) || title.contains(query);
+    }).toList();
+
+    // Limit yönetimi
+    final bool hasSearch = _auditorSearchQuery.isNotEmpty;
+    final int showCount = hasSearch
+        ? filteredList.length
+        : (_showAllAuditors ? filteredList.length : 5);
+    final displayedList = filteredList.take(showCount).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Arama Çubuğu
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: TextField(
+            decoration: InputDecoration(
+              hintText: 'Denetçi veya unvan ara...',
+              prefixIcon: Icon(Icons.search, size: 20, color: Theme.of(context).primaryColor),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              filled: true,
+              fillColor: Theme.of(context).cardColor,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.15)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Theme.of(context).primaryColor),
+              ),
+            ),
+            onChanged: (val) {
+              setState(() {
+                _auditorSearchQuery = val;
+              });
+            },
+          ),
+        ),
+        
+        // Liste başlıkları
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: Row(
+            children: [
+              SizedBox(
+                  width: 35,
+                  child: Text('SIRA',
+                      style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                          letterSpacing: 0.8))),
+              Expanded(
+                  child: Text('DENETÇİ BİLGİSİ',
+                      style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                          letterSpacing: 0.8))),
+              Text('DENETİM SAYISI',
+                  style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                      letterSpacing: 0.8)),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+
+        if (displayedList.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 32),
+            child: Center(
+              child: Text(
+                'Arama kriterine uygun denetçi bulunamadı.',
+                style: TextStyle(color: Colors.grey.withValues(alpha: 0.8), fontSize: 12),
+              ),
+            ),
+          )
+        else
+          ...displayedList.asMap().entries.map((entry) {
             final idx = entry.key;
             final p = entry.value;
-            final avg = p['avg'] as double;
-            final scoreColor = _getScoreColor(avg);
+            final count = p['count'] as int;
+            final isTop3 = idx < 3 && !hasSearch;
 
             return Container(
-              width: 160,
-              margin: const EdgeInsets.only(right: 12),
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color: idx == 0
-                        ? const Color(0xFFFFD700).withValues(alpha: 0.5)
-                        : Theme.of(context)
-                            .dividerColor
-                            .withValues(alpha: 0.1)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  )
-                ],
+                border: Border(
+                  bottom: BorderSide(
+                      color: Theme.of(context).dividerColor.withValues(alpha: 0.05)),
+                ),
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
+              child: Row(
                 children: [
-                  idx < 3
-                      ? _buildPremiumMedal(idx)
-                      : Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .primaryColor
-                                .withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text('${idx + 1}',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  color: Theme.of(context).primaryColor,
-                                  fontSize: 16)),
-                        ),
-                  const SizedBox(height: 12),
-                  Text(p['name'] as String,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14,
-                          height: 1.2,
-                          letterSpacing: -0.2)),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                        color: (Theme.of(context).brightness == Brightness.dark
-                                ? const Color(0xFF60A5FA)
-                                : AppColors.primary)
-                            .withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(6)),
-                    child: Text(p['title'] as String,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 9,
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                    ? const Color(0xFF60A5FA)
-                                    : AppColors.primary,
-                            fontWeight: FontWeight.w800)),
+                  // Sıra Numarası veya Madalya
+                  SizedBox(
+                    width: 35,
+                    child: isTop3
+                        ? _buildPremiumMedal(idx)
+                        : Text('${idx + 1}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                color: Colors.grey,
+                                fontSize: 13)),
                   ),
-                  const Spacer(),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.assessment_outlined,
-                          size: 14, color: Colors.grey.withValues(alpha: 0.8)),
-                      const SizedBox(width: 4),
-                      Text('${p['count']} Denetim',
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.withValues(alpha: 0.9),
-                              fontWeight: FontWeight.w700)),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text('%${avg.toStringAsFixed(1)}',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          color: scoreColor,
-                          fontSize: 24,
-                          letterSpacing: -0.5)),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    height: 6,
-                    clipBehavior: Clip.antiAlias,
-                    decoration: BoxDecoration(
-                        color: scoreColor.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(4)),
-                    child: FractionallySizedBox(
-                      alignment: Alignment.centerLeft,
-                      widthFactor: avg / 100,
-                      child: Container(
-                          decoration: BoxDecoration(
-                              color: scoreColor,
-                              borderRadius: BorderRadius.circular(4))),
+                  const SizedBox(width: 8),
+                  
+                  // Denetçi İsim ve Unvan
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(p['name'] as String,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13,
+                                letterSpacing: -0.2)),
+                        const SizedBox(height: 2),
+                        Text(p['title'] as String,
+                            style: TextStyle(
+                                fontSize: 9,
+                                color: Colors.grey.withValues(alpha: 0.85),
+                                fontWeight: FontWeight.bold)),
+                      ],
                     ),
+                  ),
+
+                  // Denetim Sayısı Gösterimi (Ve Küçük Bar)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text('$count',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              color: Theme.of(context).primaryColor,
+                              fontSize: 16,
+                              letterSpacing: -0.5)),
+                      const SizedBox(height: 4),
+                      Container(
+                        width: 70,
+                        height: 5,
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(3)),
+                        child: FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: maxCount > 0 ? count / maxCount : 0.0,
+                          child: Container(
+                              decoration: BoxDecoration(color: Theme.of(context).primaryColor)),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             );
-          }).toList(),
-        ),
-      ),
+          }),
+
+        // Daha Fazla Göster / Gizle Butonu (Arama yapılmıyorsa ve toplam sayı 5'ten fazla ise)
+        if (!hasSearch && filteredList.length > 5)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  _showAllAuditors = !_showAllAuditors;
+                });
+              },
+              icon: Icon(
+                _showAllAuditors ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                size: 18,
+              ),
+              label: Text(
+                _showAllAuditors ? 'Daha Az Göster' : 'Tümünü Göster (${filteredList.length} Denetçi)',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -1141,7 +1210,7 @@ class _ReportScreenState extends State<ReportScreen> {
         final q = item.question;
         catScores
             .putIfAbsent(q.categoryName, () => [])
-            .add(ans.score.toDouble());
+            .add(ans.normalizedScore);
       }
     }
 
@@ -1155,8 +1224,7 @@ class _ReportScreenState extends State<ReportScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: catScores.entries.map((e) {
-            final avgPerc = (e.value.reduce((a, b) => a + b) / e.value.length) *
-                20; // 5 üzerinden 100'e çevir
+            final avgPerc = e.value.reduce((a, b) => a + b) / e.value.length;
             final color = _getScoreColor(avgPerc);
 
             return Padding(
@@ -1730,17 +1798,24 @@ class _ReportScreenState extends State<ReportScreen> {
                 if (avg > 0)
                   Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
                     margin: const EdgeInsets.only(bottom: 4),
                     decoration: BoxDecoration(
                       color: barColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text('%${avg.toInt()}',
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '%${avg.toInt()}',
+                        maxLines: 1,
+                        softWrap: false,
                         style: TextStyle(
                             fontSize: 8,
                             fontWeight: FontWeight.w900,
-                            color: barColor)),
+                            color: barColor),
+                      ),
+                    ),
                   ),
                 Expanded(
                   child: Stack(
