@@ -1,6 +1,6 @@
 name: denetim_app
 description: Kurumsal Denetim Mobil Uygulaması
-version: 1.0.7+8
+version: 1.0.8+9
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -41,6 +41,12 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/brand/app_icon_denetim_sistemi.png"
 
 flutter:
   uses-material-design: true

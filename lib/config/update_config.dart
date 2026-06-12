@@ -9,7 +9,7 @@ class UpdateConfig {
 
   // GitHub Release içerisindeki indirilecek APK dosyasının adı
   // (flutter build apk --release --split-per-abi komutuyla üretilen en yaygın APK dosyasının adı)
-  static const String apkFileName = 'app-arm64-v8a-release.apk';
+  static const String apkFileName = 'app-release.apk';
 
   // API Adresi
   static String get latestReleaseUrl =>
