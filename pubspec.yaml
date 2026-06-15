@@ -22,7 +22,7 @@ dependencies:
   sqflite: ^2.3.0
   path: ^1.8.3
   sqflite_common_ffi: ^2.3.0
-  sqlite3_flutter_libs: ^0.5.0
+  sqlite3_flutter_libs: 0.5.41
   sqflite_common_ffi_web: ^0.4.0
   pdf: ^3.10.0
   printing: ^5.11.0
@@ -45,7 +45,7 @@ dev_dependencies:
 
 flutter_launcher_icons:
   android: true
-  ios: false
+  ios: true
   image_path: "assets/brand/app_icon_denetim_sistemi.png"
 
 flutter:
