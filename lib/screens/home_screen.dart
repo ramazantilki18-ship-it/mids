@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'start_audit_screen.dart';
+import '../widgets/verification_dialog.dart';
 import '../providers/auth_provider.dart';
 
 import '../providers/system_provider.dart';
@@ -737,7 +738,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (confirm != true) return;
               }
 
-              // NFC Verification Check
+              // Verification Check (NFC & Location)
               final nfcKey = '${task.targetLine}_$station';
               final nfcData = systemProvider.stationNfcs[nfcKey];
               String? expectedNfcUid;
@@ -747,13 +748,27 @@ class _HomeScreenState extends State<HomeScreen> {
                 expectedNfcUid = nfcData;
               }
 
-              if (expectedNfcUid != null && expectedNfcUid.isNotEmpty) {
+              final locData = systemProvider.stationLocations[nfcKey];
+              Map<String, dynamic>? locationConfig;
+              if (locData is Map<String, dynamic>) {
+                locationConfig = locData;
+              } else if (locData is Map) {
+                locationConfig = Map<String, dynamic>.from(locData);
+              }
+
+              final hasNfc = expectedNfcUid != null && expectedNfcUid.isNotEmpty;
+              final hasLocation = locationConfig != null &&
+                  locationConfig['latitude'] != null &&
+                  locationConfig['longitude'] != null;
+
+              if (hasNfc || hasLocation) {
                 if (context.mounted) {
                   final verified = await showDialog<bool>(
                     context: context,
                     barrierDismissible: false,
-                    builder: (dialogContext) => NfcVerificationDialog(
-                      expectedUid: expectedNfcUid!,
+                    builder: (dialogContext) => VerificationFlowDialog(
+                      expectedNfcUid: expectedNfcUid,
+                      locationConfig: locationConfig,
                       stationName: station,
                     ),
                   );
@@ -1123,7 +1138,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       }
 
-                      // NFC Verification Check
+                      // Verification Check (NFC & Location)
                       final nfcKey = '${line}_$station';
                       final nfcData = system.stationNfcs[nfcKey];
                       String? expectedNfcUid;
@@ -1133,13 +1148,27 @@ class _HomeScreenState extends State<HomeScreen> {
                         expectedNfcUid = nfcData;
                       }
 
-                      if (expectedNfcUid != null && expectedNfcUid.isNotEmpty) {
+                      final locData = system.stationLocations[nfcKey];
+                      Map<String, dynamic>? locationConfig;
+                      if (locData is Map<String, dynamic>) {
+                        locationConfig = locData;
+                      } else if (locData is Map) {
+                        locationConfig = Map<String, dynamic>.from(locData);
+                      }
+
+                      final hasNfc = expectedNfcUid != null && expectedNfcUid.isNotEmpty;
+                      final hasLocation = locationConfig != null &&
+                          locationConfig['latitude'] != null &&
+                          locationConfig['longitude'] != null;
+
+                      if (hasNfc || hasLocation) {
                         if (context.mounted) {
                           final verified = await showDialog<bool>(
                             context: context,
                             barrierDismissible: false,
-                            builder: (dialogContext) => NfcVerificationDialog(
-                              expectedUid: expectedNfcUid!,
+                            builder: (dialogContext) => VerificationFlowDialog(
+                              expectedNfcUid: expectedNfcUid,
+                              locationConfig: locationConfig,
                               stationName: station,
                             ),
                           );

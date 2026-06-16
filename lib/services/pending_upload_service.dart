@@ -156,6 +156,7 @@ class PendingUploadService {
             value: answer.value,
             weightedScore: answer.weightedScore,
             isCorrect: answer.isCorrect,
+            isOutOfScope: answer.isOutOfScope,
           );
         } catch (e) {
           debugPrint('Photo upload failed for ${answer.questionId}: $e');
@@ -223,6 +224,18 @@ class PendingUploadService {
       debugPrint('⏳ 1. Audit yazılıyor...');
       await FirebaseFirestore.instance.collection('audits').doc(finalAudit.id).set(finalAudit.toMap()).timeout(const Duration(seconds: 15));
       debugPrint('✅ Audit başarıyla yazıldı.');
+
+      // Sistem logu ekle
+      try {
+        await FirebaseFirestore.instance.collection('system_logs').add({
+          'timestamp': FieldValue.serverTimestamp(),
+          'user': finalAudit.auditorName.isNotEmpty ? finalAudit.auditorName : 'Mobil Kullanıcı',
+          'action': 'Denetim Tamamlandı',
+          'details': '${finalAudit.line} hattı, ${finalAudit.station} istasyonunda ${finalAudit.auditType} tamamlandı. (Skor: ${finalAudit.score.toStringAsFixed(1)})'
+        }).timeout(const Duration(seconds: 5));
+      } catch (err) {
+        debugPrint('Log writing failed: $err');
+      }
 
       if (taskId != null) {
         debugPrint('⏳ 2. Plan güncelleniyor...');

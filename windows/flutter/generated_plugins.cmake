@@ -7,6 +7,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   file_selector_windows
   firebase_auth
   firebase_core
+  geolocator_windows
   printing
   share_plus
   sqlite3_flutter_libs

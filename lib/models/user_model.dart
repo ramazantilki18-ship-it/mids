@@ -111,13 +111,7 @@ class UserModel {
     String? auditorName,
   }) {
     if (hasGlobalLineAccess) return true;
-    if (!canAccessLine(line)) return false;
-
-    if (role == UserRole.fieldAuditor) {
-      return matchesIdentity(auditorId: auditorId, auditorName: auditorName);
-    }
-
-    return true;
+    return canAccessLine(line);
   }
 
   bool canAccessNonconformity({
@@ -126,13 +120,7 @@ class UserModel {
     String? auditorName,
   }) {
     if (hasGlobalLineAccess) return true;
-    if (!canAccessLine(line)) return false;
-
-    if (role == UserRole.fieldAuditor) {
-      return matchesIdentity(auditorId: auditorId, auditorName: auditorName);
-    }
-
-    return true;
+    return canAccessLine(line);
   }
 
   Map<String, dynamic> toJson() {

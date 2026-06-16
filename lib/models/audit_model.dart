@@ -43,6 +43,8 @@ class AuditAnswer {
   final double? weightedScore;
   final bool? isCorrect;
 
+  final bool isOutOfScope;
+
   AuditAnswer({
     required this.questionId,
     this.questionText,
@@ -59,6 +61,7 @@ class AuditAnswer {
     this.value,
     this.weightedScore,
     this.isCorrect,
+    this.isOutOfScope = false,
   }) : photos = photos ?? _photosFromLegacyPaths(photoPaths);
 
   static List<AnswerPhoto> _photosFromLegacyPaths(List<String> paths) {
@@ -83,9 +86,18 @@ class AuditAnswer {
   bool? get booleanValue => value is bool ? value as bool : null;
 
   double get normalizedScore {
+    if (isOutOfScope) return 100.0;
     switch (answerType) {
       case AnswerType.scale:
-        return (numericScore / 5) * 100;
+      case AnswerType.scale6:
+        final scoreVal = numericScore.round();
+        if (scoreVal == 0) return 0.0;
+        if (scoreVal == 1) return 25.0;
+        if (scoreVal == 2) return 50.0;
+        if (scoreVal == 3) return 80.0;
+        if (scoreVal == 4) return 99.0;
+        if (scoreVal == 5) return 100.0;
+        return 0.0;
       case AnswerType.boolean:
         return booleanValue == false ? 0 : 100;
       case AnswerType.multiChoice:
@@ -112,6 +124,7 @@ class AuditAnswer {
         'value': value ?? score,
         'weightedScore': weightedScore,
         'isCorrect': isCorrect,
+        'isOutOfScope': isOutOfScope,
       };
 
   factory AuditAnswer.fromMap(Map<String, dynamic> map) {
@@ -156,6 +169,7 @@ class AuditAnswer {
       value: map['value'],
       weightedScore: (map['weightedScore'] as num?)?.toDouble(),
       isCorrect: map['isCorrect'] as bool?,
+      isOutOfScope: map['isOutOfScope'] ?? false,
     );
   }
 
@@ -175,6 +189,8 @@ class AuditModel {
   final bool isCompleted;
   final List<AuditAnswer> answers;
   final double score;
+  final DateTime? startedAt;
+  final DateTime? completedAt;
 
   AuditModel({
     required this.id,
@@ -188,6 +204,8 @@ class AuditModel {
     this.isCompleted = false,
     this.answers = const [],
     this.score = 0.0,
+    this.startedAt,
+    this.completedAt,
   });
 
   double get overallScore => score;
@@ -208,6 +226,8 @@ class AuditModel {
     bool? isCompleted,
     List<AuditAnswer>? answers,
     double? score,
+    DateTime? startedAt,
+    DateTime? completedAt,
   }) {
     return AuditModel(
       id: id ?? this.id,
@@ -221,6 +241,8 @@ class AuditModel {
       isCompleted: isCompleted ?? this.isCompleted,
       answers: answers ?? this.answers,
       score: score ?? this.score,
+      startedAt: startedAt ?? this.startedAt,
+      completedAt: completedAt ?? this.completedAt,
     );
   }
 
@@ -236,6 +258,8 @@ class AuditModel {
         'isCompleted': isCompleted,
         'score': score,
         'answers': answers.map((x) => x.toMap()).toList(),
+        'startedAt': startedAt?.toIso8601String(),
+        'completedAt': completedAt?.toIso8601String(),
       };
 
   factory AuditModel.fromMap(Map<String, dynamic> map, [String? docId]) {
@@ -257,6 +281,8 @@ class AuditModel {
       isCompleted: map['isCompleted'] ?? false,
       score: storedScore,
       answers: answers,
+      startedAt: map['startedAt'] != null ? DateTime.tryParse(map['startedAt'].toString()) : null,
+      completedAt: map['completedAt'] != null ? DateTime.tryParse(map['completedAt'].toString()) : null,
     );
   }
 }

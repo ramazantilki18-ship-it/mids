@@ -230,6 +230,8 @@ class AuditQuestionScreen extends StatelessWidget {
               const SizedBox(height: 8),
               _buildAnswerPhotoSection(context, q, ans, audit),
               _buildAdditionalCommentsSection(context, q, ans, audit),
+            ],
+            if (ans != null || q.answerType == AnswerType.scale || q.answerType == AnswerType.scale6) ...[
               const SizedBox(height: 8),
               _buildActionButtons(context, q, ans, audit),
             ],
@@ -472,58 +474,64 @@ class AuditQuestionScreen extends StatelessWidget {
           }).toList(),
         );
       case AnswerType.scale:
+      case AnswerType.scale6:
+        final scores = const [0, 1, 2, 3, 4, 5];
+        final bool isKd = ans?.isOutOfScope == true;
         return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [1, 2, 3, 4, 5].map((s) {
-                final bool isSelected = ans?.score == s;
-                return Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: s == 1 ? 0 : 2),
-                    child: InkWell(
-                      onTap: () async {
-                        final answer = AuditAnswer(
-                          questionId: q.id,
-                          score: s,
-                          answerType: q.answerType,
-                          value: s,
-                          isNonconformity: AuditScoringService.isNonconformity(
-                            auditType: audit.activeAuditType,
-                            question: q,
-                            answer: AuditAnswer(questionId: q.id, score: s, value: s, answerType: q.answerType),
-                          ),
-                          photoPaths: ans?.allPhotoUrls ?? const [],
-                          photos: ans?.photos,
-                          additionalComments: ans?.additionalComments ?? const [],
-                        );
-                        _handleAnswerSelection(context, q, audit, answer);
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: isSelected ? _scoreColor(s) : Theme.of(context).scaffoldBackgroundColor,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: isSelected ? _scoreColor(s) : Theme.of(context).dividerColor.withValues(alpha: 0.6),
-                            width: 1.0,
-                          ),
-                          boxShadow: isSelected ? [BoxShadow(color: _scoreColor(s).withValues(alpha: 0.2), blurRadius: 2, offset: const Offset(0, 1))] : null,
-                        ),
-                        child: Center(
-                          child: Text(
-                            s.toString(),
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.85),
-                              fontWeight: FontWeight.w800,
-                              fontSize: 12,
-                            ),
-                          ),
+          children: [
+            for (int i = 0; i < scores.length; i++) ...[
+              if (i > 0) const SizedBox(width: 4),
+              Expanded(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () async {
+                    final s = scores[i];
+                    final answer = AuditAnswer(
+                      questionId: q.id,
+                      score: s,
+                      answerType: q.answerType,
+                      value: s,
+                      isOutOfScope: false,
+                      isNonconformity: AuditScoringService.isNonconformity(
+                        auditType: audit.activeAuditType,
+                        question: q,
+                        answer: AuditAnswer(questionId: q.id, score: s, value: s, answerType: q.answerType),
+                      ),
+                      photoPaths: ans?.allPhotoUrls ?? const [],
+                      photos: ans?.photos,
+                      additionalComments: ans?.additionalComments ?? const [],
+                    );
+                    _handleAnswerSelection(context, q, audit, answer);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: (!isKd && ans?.score == scores[i]) ? _scoreColor(scores[i]) : Theme.of(context).dividerColor.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: (!isKd && ans?.score == scores[i]) ? _scoreColor(scores[i]) : Theme.of(context).dividerColor.withValues(alpha: 0.15),
+                        width: 1.2,
+                      ),
+                      boxShadow: (!isKd && ans?.score == scores[i])
+                          ? [BoxShadow(color: _scoreColor(scores[i]).withValues(alpha: 0.25), blurRadius: 4, offset: const Offset(0, 2))]
+                          : null,
+                    ),
+                    child: Center(
+                      child: Text(
+                        scores[i].toString(),
+                        style: TextStyle(
+                          color: (!isKd && ans?.score == scores[i]) ? Colors.white : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
                         ),
                       ),
                     ),
                   ),
-                );
-              }).toList(),
+                ),
+              ),
+            ],
+          ],
         );
     }
   }
@@ -556,6 +564,7 @@ class AuditQuestionScreen extends StatelessWidget {
 
   Color _scoreColor(int score) {
     switch (score) {
+      case 0: return const Color(0xFF9F1239);
       case 1: return const Color(0xFFE11D48);
       case 2: return const Color(0xFFFB923C);
       case 3: return const Color(0xFFFACC15);
@@ -699,6 +708,7 @@ class AuditQuestionScreen extends StatelessWidget {
                                     photoPaths: ans.allPhotoUrls,
                                     photos: ans.photos,
                                     additionalComments: ans.additionalComments,
+                                    isOutOfScope: ans.isOutOfScope,
                                   ));
                                 } else {
                                   audit.updateAdditionalComment(q.id, index, tc.text);
@@ -728,6 +738,7 @@ class AuditQuestionScreen extends StatelessWidget {
                           photoPaths: ans.allPhotoUrls,
                           photos: ans.photos,
                           additionalComments: ans.additionalComments,
+                          isOutOfScope: ans.isOutOfScope,
                         ));
                       } else {
                         audit.removeAdditionalComment(q.id, index);
@@ -744,47 +755,96 @@ class AuditQuestionScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, QuestionModel q, AuditAnswer ans, AuditProvider audit) {
-    final photos = ans.photos.isNotEmpty ? ans.photos : ans.photoPaths.where((path) => path.isNotEmpty).toList();
-    final requiresPhoto = AuditScoringService.requiresEvidencePhoto(auditType: audit.activeAuditType, question: q, answer: ans);
-    
-    final allComments = <String>[];
-    if (ans.comment != null && ans.comment!.trim().isNotEmpty) allComments.add(ans.comment!);
-    allComments.addAll(ans.additionalComments.where((c) => c.trim().isNotEmpty));
+  Widget _buildActionButtons(BuildContext context, QuestionModel q, AuditAnswer? ans, AuditProvider audit) {
+    final bool isScale = q.answerType == AnswerType.scale || q.answerType == AnswerType.scale6;
+    if (ans == null && !isScale) {
+      return const SizedBox();
+    }
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    final bool isKd = ans?.isOutOfScope == true;
+    final photos = ans != null ? (ans.photos.isNotEmpty ? ans.photos : ans.photoPaths.where((path) => path.isNotEmpty).toList()) : const [];
+    final requiresPhoto = ans != null ? AuditScoringService.requiresEvidencePhoto(auditType: audit.activeAuditType, question: q, answer: ans) : false;
+
+    return Row(
       children: [
-        if (photos.isEmpty)
+        if (ans != null) ...[
+          if (photos.isEmpty) ...[
+            ElevatedButton.icon(
+              onPressed: () => _showPhotoSourcePicker(context, q, audit),
+              icon: const Icon(Icons.add_a_photo_rounded, size: 13),
+              label: Text(requiresPhoto ? 'Kanıt Foto' : 'Fotoğraf Ekle', style: const TextStyle(fontSize: 10.5)),
+              style: ElevatedButton.styleFrom(
+                elevation: 0,
+                backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.10),
+                foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Theme.of(context).primaryColor,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                minimumSize: const Size(0, 30),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                textStyle: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+            const SizedBox(width: 6),
+          ],
           ElevatedButton.icon(
-            onPressed: () => _showPhotoSourcePicker(context, q, audit),
-            icon: const Icon(Icons.add_a_photo_rounded, size: 15),
-            label: Text(requiresPhoto ? 'Kanıt Fotoğrafı Ekle' : 'Fotoğraf Ekle'),
+            onPressed: () => _showAdditionalCommentDialog(context, q, audit),
+            icon: const Icon(Icons.add, size: 14),
+            label: const Text('Açıklama Ekle', style: TextStyle(fontSize: 10.5)),
             style: ElevatedButton.styleFrom(
               elevation: 0,
-              backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.12),
+              backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.10),
               foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Theme.of(context).primaryColor,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-              minimumSize: const Size(0, 34),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+              minimumSize: const Size(0, 30),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.3),
+              textStyle: const TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
-        ElevatedButton.icon(
-          onPressed: () => _showAdditionalCommentDialog(context, q, audit),
-          icon: const Icon(Icons.add, size: 16),
-          label: const Text('Açıklama Ekle'),
-            style: ElevatedButton.styleFrom(
-              elevation: 0,
-              backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.12),
-              foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Theme.of(context).primaryColor,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-              minimumSize: const Size(0, 34),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.3),
-            ),
+        ],
+        if (isScale) ...[
+          const Spacer(),
+          Builder(
+            builder: (context) {
+              final bool isDark = Theme.of(context).brightness == Brightness.dark;
+              final Color activeBg = isDark ? const Color(0xFF1E3A8A) : Theme.of(context).primaryColor;
+              final Color activeBorder = isDark ? const Color(0xFF3B82F6) : Theme.of(context).primaryColor;
+
+              return OutlinedButton(
+                onPressed: () {
+                  final answer = AuditAnswer(
+                    questionId: q.id,
+                    score: -1,
+                    answerType: q.answerType,
+                    value: 'KD',
+                    isOutOfScope: true,
+                    isNonconformity: false,
+                    photoPaths: const [],
+                    photos: const [],
+                    additionalComments: const [],
+                  );
+                  audit.saveAnswer(answer);
+                },
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: isKd ? activeBg : Theme.of(context).dividerColor.withValues(alpha: 0.03),
+                  foregroundColor: isKd ? Colors.white : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                  side: BorderSide(
+                    color: isKd ? activeBorder : Theme.of(context).dividerColor.withValues(alpha: 0.15),
+                    width: 1.0,
+                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                  minimumSize: const Size(0, 30),
+                ),
+                child: const Text(
+                  'Kapsam Dışı',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 10.5,
+                  ),
+                ),
+              );
+            }
           ),
+        ],
       ],
     );
   }
@@ -970,7 +1030,7 @@ class _AnswerDetailsDialogState extends State<_AnswerDetailsDialog> {
                 maxLines: 3,
                 style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
                 decoration: InputDecoration(
-                  hintText: widget.requiresComment ? 'Lütfen bir açıklama giriniz...' : 'İsterseniz not ekleyin...',
+                  hintText: 'Lütfen açıklama giriniz...',
                   hintStyle: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.65)),
                   filled: true,
                   fillColor: Theme.of(context).scaffoldBackgroundColor,
@@ -1073,6 +1133,7 @@ class _AnswerDetailsDialogState extends State<_AnswerDetailsDialog> {
                 photoPaths: _photoPaths,
                 photos: photos,
                 additionalComments: widget.tentativeAnswer.additionalComments,
+                isOutOfScope: widget.tentativeAnswer.isOutOfScope,
               ));
             };
           }(),

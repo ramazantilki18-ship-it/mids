@@ -10,8 +10,7 @@ import 'package:intl/intl.dart';
 
 import '../models/task_model.dart';
 import '../widgets/audit_type_selector.dart';
-import 'package:nfc_manager/nfc_manager.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
+import '../widgets/verification_dialog.dart';
 
 class StartAuditScreen extends StatefulWidget {
   final TaskModel? task;
@@ -233,7 +232,7 @@ class _StartAuditScreenState extends State<StartAuditScreen> {
                           if (confirm != true) return;
                         }
 
-                        // NFC Verification Check
+                        // Verification Check (NFC & Location)
                         final nfcKey = '${line}_$station';
                         final nfcData = system.stationNfcs[nfcKey];
                         String? expectedNfcUid;
@@ -243,13 +242,27 @@ class _StartAuditScreenState extends State<StartAuditScreen> {
                           expectedNfcUid = nfcData;
                         }
 
-                        if (expectedNfcUid != null && expectedNfcUid.isNotEmpty) {
+                        final locData = system.stationLocations[nfcKey];
+                        Map<String, dynamic>? locationConfig;
+                        if (locData is Map<String, dynamic>) {
+                          locationConfig = locData;
+                        } else if (locData is Map) {
+                          locationConfig = Map<String, dynamic>.from(locData);
+                        }
+
+                        final hasNfc = expectedNfcUid != null && expectedNfcUid.isNotEmpty;
+                        final hasLocation = locationConfig != null &&
+                            locationConfig['latitude'] != null &&
+                            locationConfig['longitude'] != null;
+
+                        if (hasNfc || hasLocation) {
                           if (context.mounted) {
                             final verified = await showDialog<bool>(
                               context: context,
                               barrierDismissible: false,
-                              builder: (dialogContext) => NfcVerificationDialog(
-                                expectedUid: expectedNfcUid!,
+                              builder: (dialogContext) => VerificationFlowDialog(
+                                expectedNfcUid: expectedNfcUid,
+                                locationConfig: locationConfig,
                                 stationName: station,
                               ),
                             );
@@ -368,228 +381,5 @@ int _compareTurkish(String a, String b) {
   return cleanA.length.compareTo(cleanB.length);
 }
 
-class NfcVerificationDialog extends StatefulWidget {
-  final String expectedUid;
-  final String stationName;
-  const NfcVerificationDialog({
-    required this.expectedUid,
-    required this.stationName,
-  });
 
-  @override
-  State<NfcVerificationDialog> createState() => NfcVerificationDialogState();
-}
-
-class NfcVerificationDialogState extends State<NfcVerificationDialog> {
-  bool _isNfcSupported = true;
-  String _statusText = 'Lütfen istasyon NFC kartını telefonunuza yaklaştırın.';
-  final _manualController = TextEditingController();
-  bool _showManualInput = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _startNfcSession();
-  }
-
-  String? _getNfcUid(NfcTag tag) {
-    try {
-      final Map<String, dynamic> data = tag.data;
-      List<int>? identifier;
-      
-      List<int>? parseIdentifier(dynamic val) {
-        if (val == null) return null;
-        try {
-          if (val is Iterable) {
-            return val.map((e) => int.parse(e.toString())).toList();
-          }
-        } catch (_) {}
-        return null;
-      }
-      
-      if (data.containsKey('nfca')) {
-        identifier = parseIdentifier(data['nfca']?['identifier']);
-      } else if (data.containsKey('mifare')) {
-        identifier = parseIdentifier(data['mifare']?['identifier']);
-      } else if (data.containsKey('nfcb')) {
-        identifier = parseIdentifier(data['nfcb']?['identifier']);
-      } else if (data.containsKey('nfcf')) {
-        identifier = parseIdentifier(data['nfcf']?['identifier']);
-      } else if (data.containsKey('ndef')) {
-        identifier = parseIdentifier(data['ndef']?['identifier']);
-      } else if (data.containsKey('isodep')) {
-        identifier = parseIdentifier(data['isodep']?['identifier']);
-      }
-      
-      if (identifier == null) {
-        for (var value in data.values) {
-          if (value is Map && value.containsKey('identifier')) {
-            identifier = parseIdentifier(value['identifier']);
-            if (identifier != null) break;
-          }
-        }
-      }
-
-      if (identifier == null) return null;
-      return identifier.map((e) => (e & 0xFF).toRadixString(16).padLeft(2, '0').toUpperCase()).join(':');
-    } catch (e) {
-      debugPrint('NFC UID extraction error: $e');
-      return null;
-    }
-  }
-
-  bool _compareNfcUids(String a, String b) {
-    String normalize(String s) => s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
-    final normA = normalize(a);
-    if (normA == 'bypass' || normA == 'test1234') return true;
-    return normA == normalize(b);
-  }
-
-  Future<void> _startNfcSession() async {
-    try {
-      bool isAvailable = await NfcManager.instance.isAvailable();
-      if (!isAvailable) {
-        if (mounted) {
-          setState(() {
-            _isNfcSupported = false;
-            _statusText = 'NFC özelliği kapalı veya desteklenmiyor.';
-            _showManualInput = kDebugMode;
-          });
-        }
-        return;
-      }
-      
-      NfcManager.instance.startSession(
-        onDiscovered: (NfcTag tag) async {
-          try {
-            final uid = _getNfcUid(tag);
-            if (uid != null) {
-              if (_compareNfcUids(uid, widget.expectedUid)) {
-                await NfcManager.instance.stopSession();
-                if (mounted) {
-                  Navigator.pop(context, true);
-                }
-              } else {
-                if (mounted) {
-                  setState(() {
-                    _statusText = 'Hatalı Kart! Lütfen doğru kartı okutun.';
-                  });
-                }
-              }
-            } else {
-              if (mounted) {
-                setState(() {
-                  _statusText = 'NFC Kart okundu fakat UID alınamadı.';
-                });
-              }
-            }
-          } catch (e) {
-            if (mounted) {
-              setState(() {
-                _statusText = 'Kart okuma hatası: $e';
-              });
-            }
-          }
-        },
-        onError: (error) async {
-          if (mounted) {
-            setState(() {
-              _statusText = 'Tarama Hatası: ${error.message}';
-            });
-          }
-        }
-      );
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isNfcSupported = false;
-          _statusText = 'NFC oturumu başlatılamadı.';
-          _showManualInput = kDebugMode;
-        });
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    NfcManager.instance.stopSession().catchError((_) {});
-    _manualController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      title: Column(
-        children: [
-          Icon(Icons.nfc_rounded, size: 48, color: _isNfcSupported ? AppColors.primary : Colors.grey),
-          const SizedBox(height: 12),
-          Text(
-            '${widget.stationName} NFC Doğrulama',
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-          ),
-        ],
-      ),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              _statusText,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, height: 1.4),
-            ),
-            if (_showManualInput) ...[
-              const SizedBox(height: 20),
-              TextField(
-                controller: _manualController,
-                decoration: InputDecoration(
-                  labelText: 'Geliştirici Bypass Kodu',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-      actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      actions: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('İPTAL', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-            ),
-            if (!_showManualInput && !_isNfcSupported && kDebugMode)
-              TextButton(
-                onPressed: () => setState(() => _showManualInput = true),
-                child: const Text('MANUEL GİRİŞ', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
-              )
-            else if (_showManualInput)
-              ElevatedButton(
-                onPressed: () {
-                  if (_compareNfcUids(_manualController.text.trim(), widget.expectedUid)) {
-                    Navigator.pop(context, true);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Girdiğiniz kod hatalı!')),
-                    );
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                child: const Text('DOĞRULA'),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}
 

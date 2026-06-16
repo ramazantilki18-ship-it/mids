@@ -530,6 +530,19 @@ class AuthProvider extends ChangeNotifier {
 
         _isAuthenticated = true;
         notifyListeners();
+
+        // Sistem logu ekle
+        try {
+          await FirebaseFirestore.instance.collection('system_logs').add({
+            'timestamp': FieldValue.serverTimestamp(),
+            'user': _user?.name ?? _user?.username ?? credential.user!.email ?? 'Mobil Kullanıcı',
+            'action': 'Giriş Yapıldı (Mobil)',
+            'details': 'Mobil uygulama üzerinden başarıyla giriş yapıldı.'
+          }).timeout(const Duration(seconds: 5));
+        } catch (err) {
+          print('Log writing failed: $err');
+        }
+
         return true;
       }
       return false;
@@ -566,6 +579,18 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    try {
+      final userEmail = _user?.name ?? _user?.username ?? FirebaseAuth.instance.currentUser?.email ?? 'Mobil Kullanıcı';
+      await FirebaseFirestore.instance.collection('system_logs').add({
+        'timestamp': FieldValue.serverTimestamp(),
+        'user': userEmail,
+        'action': 'Çıkış Yapıldı (Mobil)',
+        'details': 'Mobil uygulama üzerinden çıkış yapıldı.'
+      }).timeout(const Duration(seconds: 3));
+    } catch (e) {
+      print('Log writing failed on logout: $e');
+    }
+
     await FirebaseAuth.instance.signOut();
     _userListenerSubscription?.cancel();
     _userListenerSubscription = null;

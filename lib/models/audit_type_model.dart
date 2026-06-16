@@ -1,4 +1,4 @@
-enum AnswerType { scale, boolean, multiChoice, text, quiz }
+enum AnswerType { scale, boolean, multiChoice, text, quiz, scale6 }
 
 enum ScoringStrategy { scaleAverage, booleanAverage, booleanPenalty, mixedWeighted, quizAccuracy, none }
 
@@ -62,7 +62,7 @@ class AuditQuestionDefinition {
         'text': text,
         'questionText': text,
         'type': type,
-        'answerType': type == 'yes-no' ? 'boolean' : 'scale',
+        'answerType': type == 'yes-no' ? 'boolean' : (type == 'scale6' ? 'scale6' : 'scale'),
         'orderIndex': orderIndex,
         'isActive': isActive,
         'isDeleted': isDeleted,
@@ -73,7 +73,7 @@ class AuditQuestionDefinition {
     return AuditQuestionDefinition(
       id: json['id'] as String? ?? '',
       text: json['text'] as String? ?? json['questionText'] as String? ?? json['title'] as String? ?? '',
-      type: json['type'] as String? ?? (answerType == 'boolean' ? 'yes-no' : '5s-score'),
+      type: json['type'] as String? ?? (answerType == 'boolean' ? 'yes-no' : (answerType == 'scale6' ? 'scale6' : '5s-score')),
       orderIndex: _readInt(json['orderIndex']),
       isActive: _readBool(json['isActive'] ?? json['active'] ?? json['status'], fallback: true),
       isDeleted: _readBool(json['isDeleted'] ?? json['deleted'], fallback: false),
@@ -87,6 +87,7 @@ class AuditCategoryModel {
   final int orderIndex;
   final bool isActive;
   final bool isDeleted;
+  final double weight;
   final List<AuditQuestionDefinition> questions;
 
   const AuditCategoryModel({
@@ -95,6 +96,7 @@ class AuditCategoryModel {
     this.orderIndex = 0,
     this.isActive = true,
     this.isDeleted = false,
+    this.weight = 1.0,
     this.questions = const [],
   });
 
@@ -105,6 +107,7 @@ class AuditCategoryModel {
         'orderIndex': orderIndex,
         'isActive': isActive,
         'isDeleted': isDeleted,
+        'weight': weight,
         'questions': questions.map((q) => q.toJson()).toList(),
       };
 
@@ -115,6 +118,7 @@ class AuditCategoryModel {
       orderIndex: _readInt(json['orderIndex']),
       isActive: _readBool(json['isActive'] ?? json['active'] ?? json['status'], fallback: true),
       isDeleted: _readBool(json['isDeleted'] ?? json['deleted'], fallback: false),
+      weight: (json['weight'] as num?)?.toDouble() ?? 1.0,
       questions: ((json['questions'] as List?) ?? [])
           .map((q) => AuditQuestionDefinition.fromJson(Map<String, dynamic>.from(q as Map)))
           .where((q) => !q.isDeleted)
@@ -160,7 +164,7 @@ class AuditTypeModel {
     this.commentRequiredValues = const [],
   });
 
-  static const fiveSId = 'audit-type-5s';
+  static const fiveSId = 'audit-type-5s-denetimi';
   static const stationInspectionId = 'audit-type-istasyon-denetimi';
 
   static const fiveS = AuditTypeModel(
@@ -169,13 +173,13 @@ class AuditTypeModel {
     description: 'Varsayılan ölçek bazlı genel denetim tipi.',
     defaultAnswerValue: 5,
     scoringStrategy: ScoringStrategy.scaleAverage,
-    allowedAnswerTypes: [AnswerType.scale],
+    allowedAnswerTypes: [AnswerType.scale, AnswerType.scale6],
     evidenceRequired: true,
-    evidenceRequiredValues: ['1', '2', '3'],
+    evidenceRequiredValues: ['0', '1', '2', '3'],
     commentRequired: true,
-    commentRequiredValues: ['1', '2', '3'],
+    commentRequiredValues: ['0', '1', '2', '3'],
     config: {
-      'scaleMin': 1,
+      'scaleMin': 0,
       'scaleMax': 5,
       'nonconformityThreshold': 3,
     },

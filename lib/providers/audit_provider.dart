@@ -187,6 +187,7 @@ class AuditProvider extends ChangeNotifier {
       auditorName: auditorName,
       auditType: auditType,
       auditTypeId: _activeAuditType.id,
+      startedAt: DateTime.now(),
     );
     _associatedTaskId = taskId;
     _currentQuestionIndex = 0;
@@ -211,6 +212,7 @@ class AuditProvider extends ChangeNotifier {
 
     switch (question.answerType) {
       case AnswerType.scale:
+      case AnswerType.scale6:
         final score = _defaultNumericValue(defaultValue)?.round();
         if (score == null) return null;
         final answer = AuditAnswer(
@@ -296,6 +298,7 @@ class AuditProvider extends ChangeNotifier {
       value: answer.value,
       weightedScore: answer.weightedScore,
       isCorrect: answer.isCorrect,
+      isOutOfScope: answer.isOutOfScope,
     );
   }
 
@@ -373,6 +376,7 @@ class AuditProvider extends ChangeNotifier {
       value: answer.value,
       weightedScore: answer.weightedScore,
       isCorrect: answer.isCorrect,
+      isOutOfScope: answer.isOutOfScope,
     );
   }
 
@@ -449,6 +453,7 @@ class AuditProvider extends ChangeNotifier {
       value: answer.value,
       weightedScore: answer.weightedScore,
       isCorrect: answer.isCorrect,
+      isOutOfScope: answer.isOutOfScope,
     );
   }
 
@@ -514,6 +519,7 @@ class AuditProvider extends ChangeNotifier {
       isCompleted: true,
       answers: List<AuditAnswer>.from(_currentAnswers),
       score: finalScore,
+      completedAt: DateTime.now(),
     );
 
     // Kuyruğa ekle — fotoğraflar base64 olarak saklanır,

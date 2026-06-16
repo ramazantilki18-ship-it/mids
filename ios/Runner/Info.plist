@@ -75,5 +75,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Denetim başlangıcında istasyon konum doğrulaması için konumunuza ihtiyaç duyulmaktadır.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Denetim başlangıcında istasyon konum doğrulaması için konumunuza ihtiyaç duyulmaktadır.</string>
 </dict>
 </plist>

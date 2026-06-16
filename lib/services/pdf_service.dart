@@ -303,8 +303,24 @@ class PdfService {
                               pw.Row(
                                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                                 children: [
-                                  pw.Text('Değerlendirme: ${isNc ? 'UYGUNSUZ' : 'UYGUN'}', style: pw.TextStyle(color: statusColor, font: ttf, fontSize: 10, fontWeight: pw.FontWeight.bold)),
-                                  pw.Text('Puan: ${ans.score}/5', style: pw.TextStyle(font: ttf, fontSize: 10, color: PdfColors.grey700, fontWeight: pw.FontWeight.bold)),
+                                  pw.Text(
+                                    ans.isOutOfScope ? 'Değerlendirme: KAPSAM DIŞI' : 'Değerlendirme: ${isNc ? 'UYGUNSUZ' : 'UYGUN'}',
+                                    style: pw.TextStyle(
+                                      color: ans.isOutOfScope ? PdfColors.grey700 : statusColor,
+                                      font: ttf,
+                                      fontSize: 10,
+                                      fontWeight: pw.FontWeight.bold
+                                    )
+                                  ),
+                                  pw.Text(
+                                    ans.isOutOfScope ? 'Puan: K.D.' : 'Puan: ${ans.score}/5',
+                                    style: pw.TextStyle(
+                                      font: ttf,
+                                      fontSize: 10,
+                                      color: PdfColors.grey700,
+                                      fontWeight: pw.FontWeight.bold
+                                    )
+                                  ),
                                 ],
                               ),
                               pw.SizedBox(height: 8),
@@ -393,22 +409,24 @@ class PdfService {
   static pw.Widget _buildCategoryChart(AuditModel audit, pw.Font ttf) {
     debugPrint('PdfService: building category chart...');
     // Group answers by category
-    final categoryScores = <String, List<int>>{};
+    final categoryAnswers = <String, List<AuditAnswer>>{};
     final categoryNames = <String, String>{};
     for (var item in AuditQuestionResolver.resolveAnswers(audit)) {
       final ans = item.answer;
       final q = item.question;
       final cat = q.categoryName;
       categoryNames[cat] = q.categoryName;
-      categoryScores.putIfAbsent(cat, () => <int>[]).add(ans.score);
+      categoryAnswers.putIfAbsent(cat, () => <AuditAnswer>[]).add(ans);
     }
 
     final widgets = <pw.Widget>[];
     // Calculate maximum bar width based on available page width
     final maxBarWidth = PdfPageFormat.a4.availableWidth * 0.6;
-    categoryScores.forEach((cat, scores) {
-      final avg = scores.reduce((a, b) => a + b) / scores.length;
-      final avgPercent = (avg / 5 * 100); // Convert to 100-point scale
+    categoryAnswers.forEach((cat, answersList) {
+      final activeAnswers = answersList.where((a) => a.isOutOfScope != true).toList();
+      final avgPercent = activeAnswers.isEmpty
+          ? 100.0
+          : activeAnswers.fold<double>(0.0, (sum, a) => sum + a.normalizedScore) / activeAnswers.length;
       final barWidth = (avgPercent / 100 * maxBarWidth).clamp(10.0, maxBarWidth);
       widgets.add(
         pw.Container(

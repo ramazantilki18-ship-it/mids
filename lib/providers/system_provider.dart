@@ -22,6 +22,7 @@ class SystemProvider extends ChangeNotifier {
       Map.from(MockData.linesWithColors);
   final Map<String, List<String>> _stations = Map.from(MockData.stations);
   final Map<String, dynamic> _stationNfcs = {};
+  final Map<String, dynamic> _stationLocations = {};
   final Map<String, Map<String, int>> _stationNumbers = {};
   final List<UserModel> _users = List.from(MockData.users);
   List<TaskModel> _tasks = [];
@@ -41,6 +42,7 @@ class SystemProvider extends ChangeNotifier {
   List<String> get lines => _linesWithColors.keys.toList();
   Map<String, List<String>> get stations => _stations;
   Map<String, dynamic> get stationNfcs => _stationNfcs;
+  Map<String, dynamic> get stationLocations => _stationLocations;
   Map<String, Map<String, int>> get stationNumbers => _stationNumbers;
 
   // Hat rengi alma
@@ -152,9 +154,10 @@ class SystemProvider extends ChangeNotifier {
           groupId: category.id,
           categoryName: category.name,
           questionText: question.text,
+          answerType: question.type == 'yes-no'
+              ? AnswerType.boolean
+              : (question.type == 'scale6' ? AnswerType.scale6 : AnswerType.scale),
           orderIndex: question.orderIndex,
-          answerType:
-              question.type == 'yes-no' ? AnswerType.boolean : AnswerType.scale,
         ));
       }
     }
@@ -288,10 +291,10 @@ class SystemProvider extends ChangeNotifier {
             groupId: category.id,
             categoryName: category.name,
             questionText: question.text,
-            orderIndex: question.orderIndex,
             answerType: question.type == 'yes-no'
                 ? AnswerType.boolean
-                : AnswerType.scale,
+                : (question.type == 'scale6' ? AnswerType.scale6 : AnswerType.scale),
+            orderIndex: question.orderIndex,
           ));
         }
       }
@@ -411,11 +414,24 @@ class SystemProvider extends ChangeNotifier {
         final types = snapshot.docs
             .map(
                 (doc) => AuditTypeModel.fromJson({...doc.data(), 'id': doc.id}))
+            .where((t) => t.isActive && !t.isDeleted)
             .toList()
           ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
         _auditTypes
           ..clear()
           ..addAll(types);
+        
+        try {
+          final doc = snapshot.docs.firstWhere((d) => d.id == AuditTypeModel.fiveSId);
+          final config = doc.data()['config'] as Map?;
+          final allowed = doc.data()['allowedAnswerTypes'] as List?;
+          if (config != null && (config['scaleMin'] == 1 || allowed == null || !allowed.contains('scale6'))) {
+            FirebaseFirestore.instance
+                .collection('auditTypes')
+                .doc(AuditTypeModel.fiveSId)
+                .set(AuditTypeModel.fiveS.toJson());
+          }
+        } catch (_) {}
       } else {
         FirebaseFirestore.instance
             .collection('auditTypes')
@@ -572,6 +588,14 @@ class SystemProvider extends ChangeNotifier {
           });
           debugPrint('FIRESTORE: lines_stations NFC sync (${_stationNfcs.length} stations)');
         }
+        if (data['stationLocations'] != null) {
+          _stationLocations.clear();
+          final rawLocations = data['stationLocations'] as Map;
+          rawLocations.forEach((k, v) {
+            _stationLocations[k.toString()] = v;
+          });
+          debugPrint('FIRESTORE: lines_stations Location sync (${_stationLocations.length} stations)');
+        }
         if (data['stationNumbers'] != null) {
           _stationNumbers.clear();
           final rawNumbers = data['stationNumbers'] as Map;
@@ -612,6 +636,7 @@ class SystemProvider extends ChangeNotifier {
       'lines': _linesWithColors.keys.toList(),
       'stations': _stations,
       'stationNfcs': _stationNfcs,
+      'stationLocations': _stationLocations,
       'stationNumbers': _stationNumbers,
     });
   }
@@ -634,6 +659,7 @@ class SystemProvider extends ChangeNotifier {
         'lines': _linesWithColors.keys.toList(),
         'stations': _stations,
         'stationNfcs': _stationNfcs,
+        'stationLocations': _stationLocations,
         'stationNumbers': _stationNumbers,
       });
     } catch (e) {
@@ -718,6 +744,13 @@ class SystemProvider extends ChangeNotifier {
         _stationNfcs.addAll(decoded);
       }
 
+      final stationLocationsJson = prefs.getString('station_locations_json');
+      if (stationLocationsJson != null) {
+        final Map<String, dynamic> decoded = jsonDecode(stationLocationsJson);
+        _stationLocations.clear();
+        _stationLocations.addAll(decoded);
+      }
+
       final stationNumbersJson = prefs.getString('station_numbers_json');
       if (stationNumbersJson != null) {
         final Map<String, dynamic> decoded = jsonDecode(stationNumbersJson);
@@ -755,6 +788,8 @@ class SystemProvider extends ChangeNotifier {
       await prefs.setString('stations_json', jsonEncode(_stations));
       await prefs.setString(
           'station_nfcs_json', jsonEncode(_stationNfcs));
+      await prefs.setString(
+          'station_locations_json', jsonEncode(_stationLocations));
       await prefs.setString(
           'station_numbers_json', jsonEncode(_stationNumbers));
       await prefs.setString(

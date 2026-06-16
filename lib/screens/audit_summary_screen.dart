@@ -520,12 +520,16 @@ class AuditSummaryScreen extends StatelessWidget {
   Widget _buildAnswerTile(BuildContext context, AuditAnswer ans,
       QuestionModel question, NonconformityModel? nc, {int? index}) {
     final double normalized = ans.normalizedScore;
-    Color color = normalized >= 80
-        ? const Color(0xFF16A34A)
-        : (normalized >= 60 ? const Color(0xFFEA580C) : const Color(0xFFE11D48));
-    String scoreText = (ans.answerType == AnswerType.boolean)
-        ? (ans.booleanValue == true ? '100' : '0')
-        : ans.score.toString();
+    Color color = ans.isOutOfScope
+        ? Colors.blueGrey
+        : (normalized >= 80
+            ? const Color(0xFF16A34A)
+            : (normalized >= 60 ? const Color(0xFFEA580C) : const Color(0xFFE11D48)));
+    String scoreText = ans.isOutOfScope
+        ? 'K.D.'
+        : ((ans.answerType == AnswerType.boolean)
+            ? (ans.booleanValue == true ? '100' : '0')
+            : ans.score.toString());
 
     // Eğer uygunsuzluk kapandıysa yeşil göster ve durumu belirt
     if (nc != null && nc.status == NonconformityStatus.completed) {

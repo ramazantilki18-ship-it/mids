@@ -31,12 +31,14 @@ class AuditScoringService {
     required QuestionModel question,
     required AuditAnswer answer,
   }) {
+    if (answer.isOutOfScope) return false;
     final threshold = (question.scoringRule?['nonconformityThreshold'] ??
             auditType.config['nonconformityThreshold'])
         as num?;
 
     switch (question.answerType) {
       case AnswerType.scale:
+      case AnswerType.scale6:
         return answer.numericScore <= (threshold?.toDouble() ?? 3);
       case AnswerType.boolean:
         return answer.booleanValue == false;
@@ -53,6 +55,7 @@ class AuditScoringService {
     required QuestionModel question,
     required AuditAnswer answer,
   }) {
+    if (answer.isOutOfScope) return false;
     if (!auditType.evidenceRequired) return false;
     if (auditType.evidenceRule == 'none') return false;
 
@@ -75,6 +78,7 @@ class AuditScoringService {
     required QuestionModel question,
     required AuditAnswer answer,
   }) {
+    if (answer.isOutOfScope) return false;
     if (!auditType.commentRequired) return false;
     
     final selectedValues = auditType.commentRequiredValues.toSet();
@@ -89,6 +93,7 @@ class AuditScoringService {
   static String? _evidenceAnswerValue(QuestionModel question, AuditAnswer answer) {
     switch (question.answerType) {
       case AnswerType.scale:
+      case AnswerType.scale6:
         return answer.numericScore.round().toString();
       case AnswerType.boolean:
         final value = answer.booleanValue ?? (answer.score == 1 ? true : answer.score == 0 ? false : null);
@@ -103,9 +108,35 @@ class AuditScoringService {
 
   static double _scaleAverage(AuditTypeModel auditType, List<AuditAnswer> answers) {
     if (answers.isEmpty) return 0;
-    final max = (auditType.config['scaleMax'] as num?)?.toDouble() ?? 5;
-    final total = answers.fold<double>(0, (sum, answer) => sum + answer.numericScore);
-    return (total / (answers.length * max)) * 100;
+    
+    final categoryMap = <String, List<AuditAnswer>>{};
+    for (final answer in answers) {
+      final catId = answer.categoryId ?? '';
+      categoryMap.putIfAbsent(catId, () => []).add(answer);
+    }
+    
+    double weightedTotal = 0;
+    double totalWeight = 0;
+    
+    categoryMap.forEach((catId, catAnswers) {
+      final activeAnswers = catAnswers.where((a) => a.isOutOfScope != true).toList();
+      if (activeAnswers.isEmpty) return;
+      
+      final categoryTotal = activeAnswers.fold<double>(0, (sum, a) => sum + a.normalizedScore);
+      final categoryAvg = categoryTotal / activeAnswers.length;
+      
+      final category = auditType.categories.firstWhere(
+        (c) => c.id == catId || c.name == catId,
+        orElse: () => AuditCategoryModel(id: catId, name: catId, weight: 1.0),
+      );
+      
+      final weight = category.weight;
+      weightedTotal += categoryAvg * weight;
+      totalWeight += weight;
+    });
+    
+    if (totalWeight == 0) return 100.0;
+    return weightedTotal / totalWeight;
   }
 
   static double _booleanAverage(List<AuditAnswer> answers) {

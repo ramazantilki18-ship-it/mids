@@ -250,6 +250,17 @@ class NonconformityProvider extends ChangeNotifier {
       updateData['closedByName'] = closedByName;
     }
     await FirebaseFirestore.instance.collection('nonconformities').doc(id).update(updateData);
+
+    try {
+      await FirebaseFirestore.instance.collection('system_logs').add({
+        'timestamp': FieldValue.serverTimestamp(),
+        'user': closedByName ?? 'Mobil Kullanıcı',
+        'action': 'Uygunsuzluk Giderildi',
+        'details': '${nc?.line ?? ''} hattı, ${nc?.station ?? ''} istasyonundaki uygunsuzluk giderildi ve kontrole gönderildi.'
+      }).timeout(const Duration(seconds: 5));
+    } catch (err) {
+      debugPrint('Log writing failed: $err');
+    }
   }
 
   Future<void> approveNonconformity(String id, {String? approvedByName}) async {
@@ -260,12 +271,40 @@ class NonconformityProvider extends ChangeNotifier {
       updateData['approvedByName'] = approvedByName;
     }
     await FirebaseFirestore.instance.collection('nonconformities').doc(id).update(updateData);
+
+    try {
+      final doc = await FirebaseFirestore.instance.collection('nonconformities').doc(id).get();
+      final ncLine = doc.data()?['line']?.toString() ?? '';
+      final ncStation = doc.data()?['station']?.toString() ?? '';
+      await FirebaseFirestore.instance.collection('system_logs').add({
+        'timestamp': FieldValue.serverTimestamp(),
+        'user': approvedByName ?? 'Yönetici',
+        'action': 'Uygunsuzluk Onaylandı',
+        'details': '$ncLine hattı, $ncStation istasyonundaki uygunsuzluk çözümü onaylandı ve kapatıldı.'
+      }).timeout(const Duration(seconds: 5));
+    } catch (err) {
+      debugPrint('Log writing failed: $err');
+    }
   }
 
   Future<void> rejectNonconformity(String id) async {
     await FirebaseFirestore.instance.collection('nonconformities').doc(id).update({
       'status': 'open',
     });
+
+    try {
+      final doc = await FirebaseFirestore.instance.collection('nonconformities').doc(id).get();
+      final ncLine = doc.data()?['line']?.toString() ?? '';
+      final ncStation = doc.data()?['station']?.toString() ?? '';
+      await FirebaseFirestore.instance.collection('system_logs').add({
+        'timestamp': FieldValue.serverTimestamp(),
+        'user': 'Yönetici',
+        'action': 'Uygunsuzluk Reddedildi',
+        'details': '$ncLine hattı, $ncStation istasyonundaki uygunsuzluk çözümü yetersiz bulundu ve reddedildi.'
+      }).timeout(const Duration(seconds: 5));
+    } catch (err) {
+      debugPrint('Log writing failed: $err');
+    }
   }
 
   Future<void> updateNonconformityStatus(String id, NonconformityStatus status) async {
