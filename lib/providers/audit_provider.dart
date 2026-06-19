@@ -179,7 +179,7 @@ class AuditProvider extends ChangeNotifier {
     _activeAuditType = auditTypeConfig ?? AuditTypeModel.stationInspection;
     _currentAnswers = _buildDefaultAnswers(_activeAuditType, _activeQuestions);
     _currentAudit = AuditModel(
-      id: 'A-${Random().nextInt(9000) + 1000}',
+      id: 'A-${DateTime.now().millisecondsSinceEpoch}',
       date: DateTime.now(),
       line: line,
       station: station,
