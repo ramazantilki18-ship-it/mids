@@ -596,11 +596,6 @@ class AuthProvider extends ChangeNotifier {
     _userListenerSubscription = null;
     _user = null;
     _isAuthenticated = false;
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('remember_me');
-    await prefs.remove('saved_username');
-    await prefs.remove('saved_password');
     notifyListeners();
   }
 

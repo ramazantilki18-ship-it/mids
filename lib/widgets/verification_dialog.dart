@@ -315,6 +315,7 @@ class _VerificationFlowDialogState extends State<VerificationFlowDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
     final hasNfcConfig = widget.expectedNfcUid != null && widget.expectedNfcUid!.isNotEmpty;
     final hasLocationConfig = widget.locationConfig != null &&
         widget.locationConfig!['latitude'] != null &&
@@ -330,8 +331,8 @@ class _VerificationFlowDialogState extends State<VerificationFlowDialog> {
             isNfc ? Icons.nfc_rounded : Icons.location_on_rounded,
             size: 48,
             color: isNfc 
-                ? (_isNfcSupported ? AppColors.primary : Colors.grey)
-                : (_isLocationLoading ? AppColors.primary : (_currentDistance != null && _maxAllowedDistance != null && _currentDistance! <= _maxAllowedDistance! ? AppColors.accentGreen : AppColors.accentRed)),
+                ? (_isNfcSupported ? primaryColor : Colors.grey)
+                : (_isLocationLoading ? primaryColor : (_currentDistance != null && _maxAllowedDistance != null && _currentDistance! <= _maxAllowedDistance! ? AppColors.accentGreen : AppColors.accentRed)),
           ),
           const SizedBox(height: 12),
           Text(
@@ -376,8 +377,8 @@ class _VerificationFlowDialogState extends State<VerificationFlowDialog> {
                 icon: const Icon(Icons.location_on_rounded, size: 16),
                 label: const Text('Konum ile Doğrula'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary),
+                  foregroundColor: primaryColor,
+                  side: BorderSide(color: primaryColor),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
@@ -389,12 +390,12 @@ class _VerificationFlowDialogState extends State<VerificationFlowDialog> {
                 icon: const Icon(Icons.nfc_rounded, size: 16),
                 label: const Text('NFC ile Doğrula'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary),
+                  foregroundColor: primaryColor,
+                  side: BorderSide(color: primaryColor),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
-            ]
+            ],
           ],
         ),
       ),
@@ -410,7 +411,7 @@ class _VerificationFlowDialogState extends State<VerificationFlowDialog> {
             if (isNfc && !_showManualInput && !_isNfcSupported && kDebugMode)
               TextButton(
                 onPressed: () => setState(() => _showManualInput = true),
-                child: const Text('MANUEL GİRİŞ', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                child: Text('MANUEL GİRİŞ', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
               )
             else if (isNfc && _showManualInput)
               ElevatedButton(
@@ -424,7 +425,7 @@ class _VerificationFlowDialogState extends State<VerificationFlowDialog> {
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: primaryColor,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
@@ -436,7 +437,7 @@ class _VerificationFlowDialogState extends State<VerificationFlowDialog> {
                 icon: const Icon(Icons.refresh_rounded, size: 16),
                 label: const Text('YENİDEN DENE'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: primaryColor,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),

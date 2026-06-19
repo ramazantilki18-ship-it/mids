@@ -1164,7 +1164,11 @@ class PositionBox extends StatelessWidget {
   const PositionBox({super.key, required this.path});
 
   Widget _buildFullSizeImage() {
-    if (path.startsWith('http') || path.startsWith('blob:') || path.startsWith('data:')) {
+    if (path.startsWith('data:image')) {
+      final base64String = path.split(',').last;
+      final bytes = base64Decode(base64String);
+      return Image.memory(bytes, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.error, color: Colors.white, size: 50));
+    } else if (path.startsWith('http') || path.startsWith('blob:')) {
       return Image.network(path, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.error, color: Colors.white, size: 50));
     } else if (path.startsWith('assets/')) {
       return Image.asset(path, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.error, color: Colors.white, size: 50));
@@ -1178,7 +1182,17 @@ class PositionBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget image;
-    if (path.startsWith('http') || path.startsWith('blob:') || path.startsWith('data:')) {
+    if (path.startsWith('data:image')) {
+      final base64String = path.split(',').last;
+      final bytes = base64Decode(base64String);
+      image = Image.memory(
+        bytes,
+        width: 68,
+        height: 68,
+        fit: BoxFit.contain,
+        errorBuilder: (c, e, s) => Container(color: Colors.grey, child: const Icon(Icons.error)),
+      );
+    } else if (path.startsWith('http') || path.startsWith('blob:')) {
       image = Image.network(
         path,
         width: 68,
