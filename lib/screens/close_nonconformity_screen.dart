@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -117,6 +118,10 @@ class _CloseNonconformityScreenState extends State<CloseNonconformityScreen> {
   }
 
   ImageProvider _getImageProvider(String path, {bool isThumbnail = true}) {
+    if (path.startsWith('data:image')) {
+      final base64String = path.split(',').last;
+      return MemoryImage(base64Decode(base64String));
+    }
     if (path.startsWith('http')) {
       return NetworkImage(StorageService.optimizedImageUrl(path, thumbnail: isThumbnail));
     }
