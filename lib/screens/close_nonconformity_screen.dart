@@ -32,7 +32,8 @@ class _CloseNonconformityScreenState extends State<CloseNonconformityScreen> {
       );
       if (!mounted) return;
       if (photo != null) {
-        setState(() => _photoPaths.add(photo.path));
+        final persistentPath = await StorageService.savePhotoPersistently(photo.path);
+        setState(() => _photoPaths.add(persistentPath));
       }
     } catch (e) {
       if (!mounted) return;
@@ -131,7 +132,8 @@ class _CloseNonconformityScreenState extends State<CloseNonconformityScreen> {
     if (kIsWeb) {
       return NetworkImage(path); // Web'de Blob URL'leri NetworkImage ile çalışabilir
     }
-    return FileImage(File(path));
+    final cleanPath = path.startsWith('file://') ? path.replaceFirst('file://', '') : path;
+    return FileImage(File(cleanPath));
   }
 
   @override

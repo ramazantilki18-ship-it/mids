@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -657,15 +658,19 @@ class AuditSummaryScreen extends StatelessWidget {
   }
 
   ImageProvider _answerPhotoProvider(String path) {
+    if (path.startsWith('data:image')) {
+      final base64String = path.split(',').last;
+      return MemoryImage(base64Decode(base64String));
+    }
     if (path.startsWith('http') ||
-        path.startsWith('blob:') ||
-        path.startsWith('data:')) {
+        path.startsWith('blob:')) {
       return NetworkImage(path);
     }
     if (path.startsWith('assets/')) {
       return AssetImage(path);
     }
-    return FileImage(File(path));
+    final cleanPath = path.startsWith('file://') ? path.replaceFirst('file://', '') : path;
+    return FileImage(File(cleanPath));
   }
 
   IconData _getCategoryIcon(String category) {

@@ -11,6 +11,7 @@ import '../models/question_model.dart';
 import '../models/audit_model.dart';
 import '../models/audit_type_model.dart';
 import '../services/audit_scoring_service.dart';
+import '../services/storage_service.dart';
 import '../theme/app_colors.dart';
 
 class AuditQuestionScreen extends StatelessWidget {
@@ -344,13 +345,8 @@ class AuditQuestionScreen extends StatelessWidget {
           maxWidth: 1080,
         );
         if (photo != null && context.mounted) {
-          // Byte'ları hemen oku ve base64'e çevir.
-          // blob: URL'leri geçici olduğundan, sayfa yenilenince kaybolur.
-          // data: URI kalıcıdır ve SharedPreferences'ta saklanabilir.
-          final bytes = await photo.readAsBytes();
-          final base64Str = base64Encode(bytes);
-          final dataUri = 'data:image/jpeg;base64,$base64Str';
-          audit.addPhotosToAnswer(q.id, [dataUri]);
+          final persistentPath = await StorageService.savePhotoPersistently(photo.path);
+          audit.addPhotosToAnswer(q.id, [persistentPath]);
         }
       } catch (e) {
         debugPrint('Image pick error: $e');
@@ -986,8 +982,9 @@ class _AnswerDetailsDialogState extends State<_AnswerDetailsDialog> {
     try {
       final XFile? photo = await _picker.pickImage(source: source, imageQuality: 70, maxWidth: 1080);
       if (photo != null) {
+        final persistentPath = await StorageService.savePhotoPersistently(photo.path);
         if (mounted) {
-          setState(() => _photoPaths.add(photo.path));
+          setState(() => _photoPaths.add(persistentPath));
         }
       }
     } catch (e) {
@@ -1175,7 +1172,8 @@ class PositionBox extends StatelessWidget {
     } else if (kIsWeb) {
       return Image.network(path, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.error, color: Colors.white, size: 50));
     } else {
-      return Image.file(File(path), fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.error, color: Colors.white, size: 50));
+      final cleanPath = path.startsWith('file://') ? path.replaceFirst('file://', '') : path;
+      return Image.file(File(cleanPath), fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.error, color: Colors.white, size: 50));
     }
   }
 
@@ -1217,8 +1215,9 @@ class PositionBox extends StatelessWidget {
         errorBuilder: (c, e, s) => Container(color: Colors.grey, child: const Icon(Icons.error)),
       );
     } else {
+      final cleanPath = path.startsWith('file://') ? path.replaceFirst('file://', '') : path;
       image = Image.file(
-        File(path),
+        File(cleanPath),
         width: 68,
         height: 68,
         fit: BoxFit.contain,

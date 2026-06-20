@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -285,6 +286,30 @@ class PendingUploadService {
     }
     
     debugPrint('⏳ _processEntry: Firestore yazma işlemleri tamamlandı.');
+
+    // 6. Yerel dosyaları temizle (Cloudinary yüklemesi tamamlandı)
+    try {
+      debugPrint('⏳ _processEntry: Yerel fotoğraflar temizleniyor...');
+      for (var answer in uploadedAnswers) {
+        for (var path in answer.photoPaths) {
+          if (path.isNotEmpty &&
+              !path.startsWith('http://') &&
+              !path.startsWith('https://') &&
+              !path.startsWith('assets/') &&
+              !path.startsWith('mock_') &&
+              !path.startsWith('data:')) {
+            final cleanPath = path.startsWith('file://') ? path.replaceFirst('file://', '') : path;
+            final file = File(cleanPath);
+            if (file.existsSync()) {
+              file.deleteSync();
+              debugPrint('StorageService: Cleaned up local persistent photo -> $cleanPath');
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('StorageService: Cleanup local photo failed: $e');
+    }
   }
 
   // ─── Yardımcı metotlar ───

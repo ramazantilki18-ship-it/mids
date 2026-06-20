@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 class StorageService {
   static const String cloudName = 'dpk2rnnfn';
@@ -13,6 +14,32 @@ class StorageService {
       'https://res.cloudinary.com/$cloudName/image/upload/';
   static const String _optimizedTransform = 'f_auto,q_auto,c_limit,w_1024,h_1024';
   static const String _thumbnailTransform = 'f_auto,q_auto,c_fill,w_320,h_240';
+
+  static Future<String> savePhotoPersistently(String tempPath) async {
+    if (tempPath.isEmpty) return tempPath;
+    if (tempPath.startsWith('http://') || tempPath.startsWith('https://') || tempPath.startsWith('data:') || tempPath.startsWith('assets/') || tempPath.startsWith('mock_')) {
+      return tempPath;
+    }
+    try {
+      final cleanPath = tempPath.startsWith('file://') ? tempPath.replaceFirst('file://', '') : tempPath;
+      final file = File(cleanPath);
+      if (!file.existsSync()) return tempPath;
+
+      final appDocDir = await getApplicationDocumentsDirectory();
+      final photosDir = Directory('${appDocDir.path}/audit_photos');
+      if (!photosDir.existsSync()) {
+        photosDir.createSync(recursive: true);
+      }
+
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${p.basename(cleanPath)}';
+      final persistentFile = await file.copy('${photosDir.path}/$fileName');
+      debugPrint('StorageService: Photo saved persistently at -> ${persistentFile.path}');
+      return persistentFile.path;
+    } catch (e) {
+      debugPrint('StorageService: Error saving photo persistently: $e');
+      return tempPath;
+    }
+  }
 
   static String? imageUrlForPath(String path) {
     if (path.isEmpty) return null;

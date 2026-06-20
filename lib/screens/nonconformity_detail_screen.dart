@@ -31,7 +31,8 @@ class NonconformityDetailScreen extends StatelessWidget {
           StorageService.optimizedImageUrl(url, thumbnail: isThumbnail));
     }
     if (kIsWeb) return NetworkImage(path);
-    return FileImage(File(path));
+    final cleanPath = path.startsWith('file://') ? path.replaceFirst('file://', '') : path;
+    return FileImage(File(cleanPath));
   }
 
   @override
