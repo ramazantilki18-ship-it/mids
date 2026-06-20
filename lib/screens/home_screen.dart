@@ -18,6 +18,7 @@ import '../theme/app_colors.dart';
 import '../services/update_service.dart';
 import '../widgets/update_dialog.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
 
 import '../widgets/metro_brand_header.dart';
 import '../widgets/audit_type_selector.dart';
@@ -51,7 +52,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _checkUpdates() async {
-    if (kIsWeb) return;
+    // OTA APK updates are Android only. iOS uses TestFlight/AppStore natively.
+    if (kIsWeb || Platform.isIOS) return;
     final updateInfo = await UpdateService.instance.checkForUpdate();
     if (updateInfo.isAvailable && mounted) {
       showDialog(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nfc_manager/nfc_manager.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
+import 'dart:io' show Platform;
 import '../theme/app_colors.dart';
 
 enum VerificationMode { nfc, location }
@@ -113,6 +114,26 @@ class _VerificationFlowDialogState extends State<VerificationFlowDialog> {
   }
 
   Future<void> _startNfcSession() async {
+    // APPLE BYPASS: Disables NFC strictly on iOS so the app does not crash.
+    // Falls back to Location Verification smoothly on iPhones, while keeping Android NFC active.
+    if (Platform.isIOS) {
+      if (mounted) {
+        setState(() {
+          _isNfcSupported = false;
+          _nfcStatusText = 'iOS cihazlarda NFC okuma geçici olarak devre dışıdır.';
+          if (widget.locationConfig != null) {
+            _mode = VerificationMode.location;
+          } else {
+            _showManualInput = kDebugMode;
+          }
+        });
+        if (_mode == VerificationMode.location) {
+          _checkLocation();
+        }
+      }
+      return;
+    }
+
     try {
       bool isAvailable = await NfcManager.instance.isAvailable();
       if (!isAvailable) {
