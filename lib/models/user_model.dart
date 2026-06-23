@@ -46,23 +46,26 @@ extension UserRoleExtension on UserRole {
 class UserModel {
   final String id;
   final String username;
+  final String? displayName;
   final UserRole role;
   final List<String> authorizedLines;
   final List<String> authorizedStations;
   final String? password;
+  final String? jobTitle;
 
   UserModel({
     required this.id,
     required this.username,
+    this.displayName,
     required this.role,
     this.authorizedLines = const [],
     this.authorizedStations = const [],
     this.password,
+    this.jobTitle,
   });
 
-  String get name => username;
-  String get title => role
-      .displayName; // title is now mapped to role display name for backward compatibility
+  String get name => displayName ?? username;
+  String get title => jobTitle ?? role.displayName;
   String get roleDisplayName => role.displayName;
   String get roleId => role.nameInFirebase;
 
@@ -127,24 +130,27 @@ class UserModel {
     return {
       'id': id,
       'username': username,
-      'name': username,
+      'name': displayName ?? username,
       'roleId': role.nameInFirebase,
       'role': role.nameInFirebase,
       'authorizedLines': authorizedLines,
       'authorizedStations': authorizedStations,
       'password': password,
+      'title': jobTitle,
     };
   }
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     final rawRole = json['roleId']?.toString() ??
         json['roleName']?.toString() ??
-        json['title']?.toString() ??
         json['role']?.toString() ??
+        json['title']?.toString() ??
         'Field_Auditor';
     final username =
         (json['username'] ?? json['name'] ?? json['email'] ?? 'Kullanıcı')
             .toString();
+    final String? displayName = json['name']?.toString();
+    final String? jobTitle = json['title']?.toString();
 
     // Map string from firebase to UserRole enum
     UserRole parsedRole = UserRole.fieldAuditor;
@@ -198,6 +204,7 @@ class UserModel {
     return UserModel(
       id: (json['id'] ?? json['uid'] ?? username).toString(),
       username: username,
+      displayName: displayName,
       role: parsedRole,
       authorizedLines: _parseStringList(
         json['authorizedLines'] ?? json['lines'] ?? json['authorized_lines'],
@@ -208,6 +215,7 @@ class UserModel {
             json['authorized_stations'],
       ),
       password: json['password'] as String?,
+      jobTitle: jobTitle,
     );
   }
 

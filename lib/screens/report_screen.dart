@@ -326,7 +326,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   _buildReportSection(
                     title: 'DENETÇİ DENETİM SAYILARI',
                     subtitle: 'Denetçilerin toplam gerçekleştirdiği denetim sayıları.',
-                    content: _buildAuditorAuditCountList(filteredAudits),
+                    content: _buildAuditorAuditCountList(filteredAudits, system.users),
                   ),
                   _buildReportSection(
                     title: 'GENEL KATEGORİ BAŞARI ORANLARI',
@@ -831,7 +831,7 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  Widget _buildAuditorAuditCountList(List<AuditModel> audits) {
+  Widget _buildAuditorAuditCountList(List<AuditModel> audits, List<UserModel> systemUsers) {
     if (audits.isEmpty) return const SizedBox();
 
     final Map<String, List<AuditModel>> auditorGroups = {};
@@ -842,15 +842,37 @@ class _ReportScreenState extends State<ReportScreen> {
     final performance = auditorGroups.entries.map((e) {
       final userAudits = e.value;
       final firstAudit = userAudits.first;
-      final userModel = MockData.users.firstWhere(
-          (u) => u.id == firstAudit.auditorId,
-          orElse: () => MockData.users.first);
+
+      // Find in systemUsers first, then in MockData.users
+      UserModel? foundUser;
+      for (var u in systemUsers) {
+        if (u.matchesIdentity(
+            auditorId: firstAudit.auditorId,
+            auditorName: firstAudit.auditorName)) {
+          foundUser = u;
+          break;
+        }
+      }
+      if (foundUser == null) {
+        for (var u in MockData.users) {
+          if (u.matchesIdentity(
+              auditorId: firstAudit.auditorId,
+              auditorName: firstAudit.auditorName)) {
+            foundUser = u;
+            break;
+          }
+        }
+      }
+
+      final displayName = foundUser?.username ?? e.key;
+      final displayTitle = foundUser?.title ?? 'Saha Denetçisi';
+      final displayLines = foundUser?.authorizedLines.join(', ') ?? '';
 
       return {
-        'name': e.key,
+        'name': displayName,
         'count': userAudits.length,
-        'title': userModel.title,
-        'lines': userModel.authorizedLines.join(', '),
+        'title': displayTitle,
+        'lines': displayLines,
       };
     }).toList()
       ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
@@ -990,11 +1012,15 @@ class _ReportScreenState extends State<ReportScreen> {
                                 fontSize: 13,
                                 letterSpacing: -0.2)),
                         const SizedBox(height: 2),
-                        Text(p['title'] as String,
-                            style: TextStyle(
-                                fontSize: 9,
-                                color: Colors.grey.withValues(alpha: 0.85),
-                                fontWeight: FontWeight.bold)),
+                        Text(
+                          p['lines'] != null && (p['lines'] as String).isNotEmpty
+                              ? '${p['title']} • ${p['lines']}'
+                              : p['title'] as String,
+                          style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey.withValues(alpha: 0.85),
+                              fontWeight: FontWeight.bold),
+                        ),
                       ],
                     ),
                   ),
