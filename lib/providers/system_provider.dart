@@ -638,7 +638,7 @@ class SystemProvider extends ChangeNotifier {
       'stationNfcs': _stationNfcs,
       'stationLocations': _stationLocations,
       'stationNumbers': _stationNumbers,
-    });
+    }, SetOptions(merge: true));
   }
 
   Future<void> _saveLinesStationsToFirebase() async {
@@ -661,7 +661,7 @@ class SystemProvider extends ChangeNotifier {
         'stationNfcs': _stationNfcs,
         'stationLocations': _stationLocations,
         'stationNumbers': _stationNumbers,
-      });
+      }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Save lines/stations to Firebase error: $e');
     }
