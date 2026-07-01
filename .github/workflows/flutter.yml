@@ -29,11 +29,11 @@ jobs:
       - name: Flutter Kurulumu
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.27.0'
+          flutter-version: '3.35.0'
           channel: 'stable'
 
       - name: Bağımlılıkları Yükle
-        run: flutter pub get --no-example
+        run: flutter pub get
 
       - name: APK Build (Release)
         run: flutter build apk --release
