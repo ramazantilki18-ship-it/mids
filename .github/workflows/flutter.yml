@@ -20,6 +20,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Java Kurulumu
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Flutter Kurulumu
         uses: subosito/flutter-action@v2
         with:
@@ -27,7 +33,7 @@ jobs:
           channel: 'stable'
 
       - name: Bağımlılıkları Yükle
-        run: flutter pub get
+        run: flutter pub get --no-example
 
       - name: APK Build (Release)
         run: flutter build apk --release
@@ -50,7 +56,6 @@ jobs:
 
             Bu sürüm otomatik olarak build edilip yayınlanmıştır.
 
-            **Build Tarihi:** ${{ github.event.head_commit.timestamp }}
             **Commit:** ${{ github.sha }}
           files: |
             build/app/outputs/flutter-apk/app-release.apk
