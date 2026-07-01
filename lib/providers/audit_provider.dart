@@ -377,6 +377,7 @@ class AuditProvider extends ChangeNotifier {
       weightedScore: answer.weightedScore,
       isCorrect: answer.isCorrect,
       isOutOfScope: answer.isOutOfScope,
+      additionalNonconformities: answer.additionalNonconformities,
     );
   }
 
@@ -429,7 +430,7 @@ class AuditProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  AuditAnswer _copyAnswer(AuditAnswer answer, {List<AnswerPhoto>? photos, List<String>? additionalComments}) {
+  AuditAnswer _copyAnswer(AuditAnswer answer, {List<AnswerPhoto>? photos, List<String>? additionalComments, List<AdditionalNonconformity>? additionalNonconformities}) {
     final nextPhotos = photos ??
         (answer.photos.isNotEmpty
             ? answer.photos
@@ -454,7 +455,42 @@ class AuditProvider extends ChangeNotifier {
       weightedScore: answer.weightedScore,
       isCorrect: answer.isCorrect,
       isOutOfScope: answer.isOutOfScope,
+      additionalNonconformities: additionalNonconformities ?? List.from(answer.additionalNonconformities),
     );
+  }
+
+  void addAdditionalNonconformityToAnswer(String questionId, String comment, String photoPath) {
+    if (comment.trim().isEmpty || photoPath.trim().isEmpty) return;
+    final index = _currentAnswers.indexWhere((a) => a.questionId == questionId);
+    final newNc = AdditionalNonconformity(
+      id: 'unc-${DateTime.now().microsecondsSinceEpoch}',
+      photoUrl: photoPath.trim(),
+      comment: comment.trim(),
+    );
+    if (index == -1) {
+      final newAnswer = AuditAnswer(
+        questionId: questionId,
+        score: 0,
+        additionalNonconformities: [newNc],
+      );
+      _currentAnswers.add(newAnswer);
+    } else {
+      final answer = _currentAnswers[index];
+      final newNcs = List<AdditionalNonconformity>.from(answer.additionalNonconformities)..add(newNc);
+      _currentAnswers[index] = _copyAnswer(answer, additionalNonconformities: newNcs);
+    }
+    _saveActiveDraft();
+    notifyListeners();
+  }
+
+  void removeAdditionalNonconformity(String questionId, String ncId) {
+    final index = _currentAnswers.indexWhere((a) => a.questionId == questionId);
+    if (index == -1) return;
+    final answer = _currentAnswers[index];
+    final newNcs = answer.additionalNonconformities.where((n) => n.id != ncId).toList();
+    _currentAnswers[index] = _copyAnswer(answer, additionalNonconformities: newNcs);
+    _saveActiveDraft();
+    notifyListeners();
   }
 
   void addAdditionalCommentToAnswer(String questionId, String comment) {

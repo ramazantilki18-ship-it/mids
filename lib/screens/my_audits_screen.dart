@@ -86,7 +86,7 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
   }
 
   List<AuditModel> _applyFilters(
-      List<AuditModel> audits, AuditTypeModel? selectedAuditType) {
+      List<AuditModel> audits, AuditTypeModel? selectedAuditType, {Map<String, String> auditorMap = const {}}) {
     var filtered = List<AuditModel>.from(audits);
 
     if (selectedAuditType == null) return [];
@@ -118,12 +118,14 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
           .toList();
     }
 
-    // Denetleyen Kişi Filtresi (Hem ID hem de isim ile kontrol et)
+    // Denetleyen Kişi Filtresi (Ad soyad ile kontrol et)
     if (_selectedAuditor != 'Tümü') {
       filtered = filtered
-          .where((a) =>
-              a.auditorName == _selectedAuditor ||
-              a.auditorId == _selectedAuditor)
+          .where((a) {
+            final resolvedName = auditorMap[a.auditorId] ?? a.auditorName;
+            return resolvedName == _selectedAuditor ||
+                a.auditorId == _selectedAuditor;
+          })
           .toList();
     }
 
@@ -189,7 +191,19 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
             .any((type) => type.id == _selectedAuditTypeId)
         ? activeAuditTypes.firstWhere((type) => type.id == _selectedAuditTypeId)
         : (activeAuditTypes.isNotEmpty ? activeAuditTypes.first : null);
-    final filteredAudits = _applyFilters(allAudits, selectedAuditType);
+
+    // Denetleyen kişileri auditorId'ye göre ad soyad ile göster
+    final auditorMap = <String, String>{};
+    for (var audit in allAudits) {
+      if (!auditorMap.containsKey(audit.auditorId)) {
+        auditorMap[audit.auditorId] = system.resolveDisplayName(
+          auditorId: audit.auditorId,
+          auditorName: audit.auditorName,
+        );
+      }
+    }
+
+    final filteredAudits = _applyFilters(allAudits, selectedAuditType, auditorMap: auditorMap);
     final displayedAudits =
         filteredAudits.take(_currentPage * _pageSize).toList();
     final hasMoreAudits = filteredAudits.length > displayedAudits.length;
@@ -229,22 +243,7 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
       '10',
       '11',
       '12'
-    ]; // Denetleyen kişileri auditorId'ye göre kullanıcı adı ile göster
-    final auditorMap = <String, String>{};
-    for (var audit in allAudits) {
-      if (!auditorMap.containsKey(audit.auditorId)) {
-        // Önce SystemProvider'dan kullanıcıyı bul
-        final systemProvider = context.read<SystemProvider>();
-        try {
-          final user =
-              systemProvider.users.firstWhere((u) => u.id == audit.auditorId);
-          auditorMap[audit.auditorId] = user.username;
-        } catch (_) {
-          auditorMap[audit.auditorId] =
-              audit.auditorId; // Bulunamazsa ID'yi kullan
-        }
-      }
-    }
+    ];
     final availableAuditors = [
       'Tümü',
       ...auditorMap.values.toSet().toList()..sort()
@@ -704,7 +703,9 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
   // KOMPAKT LİSTE GÖRÜNÜMÜ - KURUMSAL TASARIM
   Widget _buildAuditCard(BuildContext context, AuditModel audit) {
     final scoreColor = _getScoreColor(audit.score);
-    final ncCount = audit.answers.where((a) => a.isNonconformity).length;
+    final ncCount = audit.answers.where((a) => a.isNonconformity).fold<int>(0, (sum, a) {
+      return sum + 1 + a.additionalNonconformities.length;
+    });
 
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
@@ -758,7 +759,7 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
                 Expanded(
                   child: Center(
                     child: Text(
-                      '${audit.score.toStringAsFixed(1)}%',
+                      '${audit.score % 1 == 0 ? audit.score.toInt().toString() : audit.score.toStringAsFixed(1)}%',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
@@ -771,14 +772,14 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
 
                 const SizedBox(width: 12),
 
-                // Sağ: Kullanıcı adı + Tarih + Uygunsuzluk
+                // Sağ: Ad Soyad + Tarih + Uygunsuzluk
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
-                        audit.auditorName,
+                        context.read<SystemProvider>().resolveDisplayName(auditorId: audit.auditorId, auditorName: audit.auditorName),
                         style: TextStyle(
                           fontSize: 13,
                           color: Theme.of(context)

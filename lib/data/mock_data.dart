@@ -245,7 +245,7 @@ class MockData {
     return AuditModel(
       id: 'AUD-${2000 + i}',
       auditorId: user.id,
-      auditorName: user.username,
+      auditorName: user.name,
       line: line,
       station: station,
       date: date,

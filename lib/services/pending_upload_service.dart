@@ -123,46 +123,81 @@ class PendingUploadService {
     debugPrint('⏳ _processEntry: Fotoğraflar yükleniyor...');
     final uploadedAnswers = await Future.wait(
       answers.map((answer) async {
-        final hasUploadablePhotos = answer.allPhotoUrls.any((p) =>
+        List<String> uploadedMainUrls = [];
+        final hasUploadableMain = answer.allPhotoUrls.any((p) =>
             p.isNotEmpty &&
             !p.startsWith('http://') &&
             !p.startsWith('https://') &&
             !p.startsWith('assets/') &&
             !p.startsWith('mock_'));
 
-        if (!hasUploadablePhotos) return answer;
-
-        try {
-          final photoUrls = await StorageService.uploadPhotoPaths(
-            paths: answer.allPhotoUrls,
-            auditId: audit.id,
-            questionId: answer.questionId,
-          );
-          final uploadedPhotos = photoUrls
-              .map((url) => AnswerPhoto(id: 'photo-${url.hashCode.abs()}', url: url))
-              .toList();
-          return AuditAnswer(
-            questionId: answer.questionId,
-            questionText: answer.questionText,
-            categoryId: answer.categoryId,
-            categoryName: answer.categoryName,
-            orderIndex: answer.orderIndex,
-            score: answer.score,
-            comment: answer.comment,
-            additionalComments: answer.additionalComments,
-            photoPaths: photoUrls,
-            photos: uploadedPhotos,
-            isNonconformity: answer.isNonconformity,
-            answerType: answer.answerType,
-            value: answer.value,
-            weightedScore: answer.weightedScore,
-            isCorrect: answer.isCorrect,
-            isOutOfScope: answer.isOutOfScope,
-          );
-        } catch (e) {
-          debugPrint('Photo upload failed for ${answer.questionId}: $e');
-          rethrow; // bu entry'yi failed olarak işaretle
+        if (hasUploadableMain) {
+          try {
+            uploadedMainUrls = await StorageService.uploadPhotoPaths(
+              paths: answer.allPhotoUrls,
+              auditId: audit.id,
+              questionId: answer.questionId,
+            );
+          } catch (e) {
+            debugPrint('Main photo upload failed: $e');
+            rethrow;
+          }
+        } else {
+          uploadedMainUrls = answer.allPhotoUrls;
         }
+
+        final List<AdditionalNonconformity> uploadedAddNcs = [];
+        for (var addNc in answer.additionalNonconformities) {
+          final isUploadable = addNc.photoUrl.isNotEmpty &&
+              !addNc.photoUrl.startsWith('http://') &&
+              !addNc.photoUrl.startsWith('https://') &&
+              !addNc.photoUrl.startsWith('assets/') &&
+              !addNc.photoUrl.startsWith('mock_');
+
+          if (isUploadable) {
+            try {
+              final urls = await StorageService.uploadPhotoPaths(
+                paths: [addNc.photoUrl],
+                auditId: audit.id,
+                questionId: answer.questionId,
+              );
+              uploadedAddNcs.add(AdditionalNonconformity(
+                id: addNc.id,
+                photoUrl: urls.first,
+                comment: addNc.comment,
+              ));
+            } catch (e) {
+              debugPrint('Additional NC photo upload failed: $e');
+              rethrow;
+            }
+          } else {
+            uploadedAddNcs.add(addNc);
+          }
+        }
+
+        final uploadedPhotos = uploadedMainUrls
+            .map((url) => AnswerPhoto(id: 'photo-${url.hashCode.abs()}', url: url))
+            .toList();
+
+        return AuditAnswer(
+          questionId: answer.questionId,
+          questionText: answer.questionText,
+          categoryId: answer.categoryId,
+          categoryName: answer.categoryName,
+          orderIndex: answer.orderIndex,
+          score: answer.score,
+          comment: answer.comment,
+          additionalComments: answer.additionalComments,
+          photoPaths: uploadedMainUrls,
+          photos: uploadedPhotos,
+          isNonconformity: answer.isNonconformity,
+          answerType: answer.answerType,
+          value: answer.value,
+          weightedScore: answer.weightedScore,
+          isCorrect: answer.isCorrect,
+          isOutOfScope: answer.isOutOfScope,
+          additionalNonconformities: uploadedAddNcs,
+        );
       }),
     );
     debugPrint('⏳ _processEntry: Fotoğraflar yüklendi.');
@@ -184,10 +219,12 @@ class PendingUploadService {
           await db.update('tasks', {'isCompleted': 1}, where: 'id = ?', whereArgs: [taskId]);
         }
         for (var answer in uploadedAnswers) {
-          if (answer.isNonconformity) {
-            final qi = questions.indexWhere((q) => q.id == answer.questionId);
-            if (qi != -1) {
-              final question = questions[qi];
+          final qi = questions.indexWhere((q) => q.id == answer.questionId);
+          if (qi != -1) {
+            final question = questions[qi];
+            
+            // 1. Ana Uygunsuzluk (varsa)
+            if (answer.isNonconformity) {
               final nc = NonconformityModel(
                 id: 'NC-${finalAudit.id}-${answer.questionId}',
                 auditId: finalAudit.id,
@@ -199,11 +236,31 @@ class PendingUploadService {
                 station: finalAudit.station,
                 line: finalAudit.line,
                 score: answer.score,
-                auditorComment: [
-                  if (answer.comment != null && answer.comment!.trim().isNotEmpty) answer.comment!.trim(),
-                  if (answer.additionalComments.isNotEmpty) ...answer.additionalComments.map((c) => '• $c')
-                ].join('\n\n'),
-                auditorPhotoPaths: answer.allPhotoUrls,
+                auditorComment: answer.comment ?? '',
+                auditorPhotoPaths: answer.photos.map((p) => p.url).toList(),
+                detectionDate: finalAudit.date,
+                auditorName: finalAudit.auditorName,
+                responsiblePerson: responsibleTitle,
+                status: NonconformityStatus.open,
+              );
+              await DatabaseHelper.instance.insertNonconformity(nc);
+            }
+
+            // 2. İlave Uygunsuzluklar (varsa)
+            for (var addNc in answer.additionalNonconformities) {
+              final nc = NonconformityModel(
+                id: 'NC-${finalAudit.id}-${answer.questionId}-${addNc.id}',
+                auditId: finalAudit.id,
+                auditTypeId: finalAudit.auditTypeId,
+                auditType: finalAudit.auditType,
+                questionId: answer.questionId,
+                questionText: question.questionText,
+                category: question.categoryName,
+                station: finalAudit.station,
+                line: finalAudit.line,
+                score: answer.score,
+                auditorComment: addNc.comment,
+                auditorPhotoPaths: [addNc.photoUrl],
                 detectionDate: finalAudit.date,
                 auditorName: finalAudit.auditorName,
                 responsiblePerson: responsibleTitle,
@@ -248,10 +305,12 @@ class PendingUploadService {
       }
 
       for (var answer in uploadedAnswers) {
-        if (answer.isNonconformity) {
-          final qi = questions.indexWhere((q) => q.id == answer.questionId);
-          if (qi != -1) {
-            final question = questions[qi];
+        final qi = questions.indexWhere((q) => q.id == answer.questionId);
+        if (qi != -1) {
+          final question = questions[qi];
+          
+          // 1. Ana Uygunsuzluk (varsa)
+          if (answer.isNonconformity) {
             final nc = NonconformityModel(
               id: 'NC-${finalAudit.id}-${answer.questionId}',
               auditId: finalAudit.id,
@@ -263,20 +322,43 @@ class PendingUploadService {
               station: finalAudit.station,
               line: finalAudit.line,
               score: answer.score,
-              auditorComment: [
-                if (answer.comment != null && answer.comment!.trim().isNotEmpty) answer.comment!.trim(),
-                if (answer.additionalComments.isNotEmpty) ...answer.additionalComments.map((c) => '• $c')
-              ].join('\n\n'),
-              auditorPhotoPaths: answer.allPhotoUrls,
+              auditorComment: answer.comment ?? '',
+              auditorPhotoPaths: answer.photos.map((p) => p.url).toList(),
               detectionDate: finalAudit.date,
               auditorName: finalAudit.auditorName,
               responsiblePerson: responsibleTitle,
               status: NonconformityStatus.open,
             );
             
-            debugPrint('⏳ 3. Uygunsuzluk yazılıyor... (${nc.id})');
+            debugPrint('⏳ 3. Ana Uygunsuzluk yazılıyor... (${nc.id})');
             await FirebaseFirestore.instance.collection('nonconformities').doc(nc.id).set(nc.toMap()).timeout(const Duration(seconds: 10));
-            debugPrint('✅ Uygunsuzluk yazıldı: ${nc.id}');
+            debugPrint('✅ Ana Uygunsuzluk yazıldı: ${nc.id}');
+          }
+
+          // 2. İlave Uygunsuzluklar (varsa)
+          for (var addNc in answer.additionalNonconformities) {
+            final nc = NonconformityModel(
+              id: 'NC-${finalAudit.id}-${answer.questionId}-${addNc.id}',
+              auditId: finalAudit.id,
+              auditTypeId: finalAudit.auditTypeId,
+              auditType: finalAudit.auditType,
+              questionId: answer.questionId,
+              questionText: question.questionText,
+              category: question.categoryName,
+              station: finalAudit.station,
+              line: finalAudit.line,
+              score: answer.score,
+              auditorComment: addNc.comment,
+              auditorPhotoPaths: [addNc.photoUrl],
+              detectionDate: finalAudit.date,
+              auditorName: finalAudit.auditorName,
+              responsiblePerson: responsibleTitle,
+              status: NonconformityStatus.open,
+            );
+            
+            debugPrint('⏳ 3. İlave Uygunsuzluk yazılıyor... (${nc.id})');
+            await FirebaseFirestore.instance.collection('nonconformities').doc(nc.id).set(nc.toMap()).timeout(const Duration(seconds: 10));
+            debugPrint('✅ İlave Uygunsuzluk yazıldı: ${nc.id}');
           }
         }
       }
@@ -298,11 +380,33 @@ class PendingUploadService {
               !path.startsWith('assets/') &&
               !path.startsWith('mock_') &&
               !path.startsWith('data:')) {
-            final cleanPath = path.startsWith('file://') ? path.replaceFirst('file://', '') : path;
-            final file = File(cleanPath);
-            if (file.existsSync()) {
-              file.deleteSync();
-              debugPrint('StorageService: Cleaned up local persistent photo -> $cleanPath');
+            try {
+              final file = File(path);
+              if (file.existsSync()) {
+                file.deleteSync();
+                debugPrint('🗑️ Yerel fotoğraf silindi: $path');
+              }
+            } catch (err) {
+              debugPrint('Error deleting local photo: $err');
+            }
+          }
+        }
+        for (var addNc in answer.additionalNonconformities) {
+          final path = addNc.photoUrl;
+          if (path.isNotEmpty &&
+              !path.startsWith('http://') &&
+              !path.startsWith('https://') &&
+              !path.startsWith('assets/') &&
+              !path.startsWith('mock_') &&
+              !path.startsWith('data:')) {
+            try {
+              final file = File(path);
+              if (file.existsSync()) {
+                file.deleteSync();
+                debugPrint('🗑️ Yerel ilave fotoğraf silindi: $path');
+              }
+            } catch (err) {
+              debugPrint('Error deleting local additional photo: $err');
             }
           }
         }
@@ -396,10 +500,10 @@ class PendingUploadService {
               .toList();
 
           for (var answer in answers) {
-            if (answer.isNonconformity) {
-              final qi = questions.indexWhere((q) => q.id == answer.questionId);
-              if (qi != -1) {
-                final question = questions[qi];
+            final qi = questions.indexWhere((q) => q.id == answer.questionId);
+            if (qi != -1) {
+              final question = questions[qi];
+              if (answer.isNonconformity) {
                 list.add(NonconformityModel(
                   id: 'NC-${audit.id}-${answer.questionId}',
                   auditId: audit.id,
@@ -419,6 +523,27 @@ class PendingUploadService {
                   detectionDate: audit.date,
                   auditorName: audit.auditorName,
                   responsiblePerson: 'Bekliyor', // Placeholder for pending UI
+                  status: NonconformityStatus.open,
+                ));
+              }
+
+              for (var addNc in answer.additionalNonconformities) {
+                list.add(NonconformityModel(
+                  id: 'NC-${audit.id}-${answer.questionId}-${addNc.id}',
+                  auditId: audit.id,
+                  auditTypeId: audit.auditTypeId,
+                  auditType: audit.auditType,
+                  questionId: answer.questionId,
+                  questionText: question.questionText,
+                  category: question.categoryName,
+                  station: audit.station,
+                  line: audit.line,
+                  score: answer.score,
+                  auditorComment: addNc.comment,
+                  auditorPhotoPaths: [addNc.photoUrl],
+                  detectionDate: audit.date,
+                  auditorName: audit.auditorName,
+                  responsiblePerson: 'Bekliyor',
                   status: NonconformityStatus.open,
                 ));
               }

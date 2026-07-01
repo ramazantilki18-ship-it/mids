@@ -26,6 +26,31 @@ class AnswerPhoto {
       );
 }
 
+class AdditionalNonconformity {
+  final String id;
+  final String photoUrl;
+  final String comment;
+
+  AdditionalNonconformity({
+    required this.id,
+    required this.photoUrl,
+    required this.comment,
+  });
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'photoUrl': photoUrl,
+        'comment': comment,
+      };
+
+  factory AdditionalNonconformity.fromMap(Map<String, dynamic> map) =>
+      AdditionalNonconformity(
+        id: map['id']?.toString() ?? 'unc-${DateTime.now().microsecondsSinceEpoch}',
+        photoUrl: map['photoUrl']?.toString() ?? '',
+        comment: map['comment']?.toString() ?? '',
+      );
+}
+
 class AuditAnswer {
   final String questionId;
   final String? questionText;
@@ -42,8 +67,8 @@ class AuditAnswer {
   final dynamic value;
   final double? weightedScore;
   final bool? isCorrect;
-
   final bool isOutOfScope;
+  final List<AdditionalNonconformity> additionalNonconformities;
 
   AuditAnswer({
     required this.questionId,
@@ -62,6 +87,7 @@ class AuditAnswer {
     this.weightedScore,
     this.isCorrect,
     this.isOutOfScope = false,
+    this.additionalNonconformities = const [],
   }) : photos = photos ?? _photosFromLegacyPaths(photoPaths);
 
   static List<AnswerPhoto> _photosFromLegacyPaths(List<String> paths) {
@@ -125,6 +151,7 @@ class AuditAnswer {
         'weightedScore': weightedScore,
         'isCorrect': isCorrect,
         'isOutOfScope': isOutOfScope,
+        'additionalNonconformities': additionalNonconformities.map((e) => e.toMap()).toList(),
       };
 
   factory AuditAnswer.fromMap(Map<String, dynamic> map) {
@@ -150,6 +177,12 @@ class AuditAnswer {
     final rawScore = map['score'] ?? map['value'] ?? 0;
     final score = rawScore is num ? rawScore.toInt() : (rawScore == true ? 1 : 0);
 
+    final rawAddNCs = map['additionalNonconformities'] as List? ?? const [];
+    final additionalNonconformities = rawAddNCs
+        .map((e) => e is Map ? AdditionalNonconformity.fromMap(Map<String, dynamic>.from(e)) : null)
+        .whereType<AdditionalNonconformity>()
+        .toList();
+
     return AuditAnswer(
       questionId: map['questionId'] ?? '',
       questionText: map['questionText'] as String?,
@@ -170,6 +203,7 @@ class AuditAnswer {
       weightedScore: (map['weightedScore'] as num?)?.toDouble(),
       isCorrect: map['isCorrect'] as bool?,
       isOutOfScope: map['isOutOfScope'] ?? false,
+      additionalNonconformities: additionalNonconformities,
     );
   }
 

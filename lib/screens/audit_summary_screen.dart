@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/audit_provider.dart';
 import '../providers/nonconformity_provider.dart';
+import '../providers/system_provider.dart';
 import '../models/audit_model.dart';
 import '../models/user_model.dart';
 import '../models/question_model.dart';
@@ -52,7 +53,11 @@ class AuditSummaryScreen extends StatelessWidget {
                 Navigator.pop(context); // Close bottom sheet
                 
                 try {
-                  await PdfService.exportAndShareAudit(audit!);
+                  final resolvedName = context.read<SystemProvider>().resolveDisplayName(
+                    auditorId: audit!.auditorId,
+                    auditorName: audit!.auditorName,
+                  );
+                  await PdfService.exportAndShareAudit(audit!, resolvedAuditorName: resolvedName);
                   messenger.showSnackBar(const SnackBar(
                       content: Text('PDF başarıyla oluşturuldu ve paylaşıldı.')));
                 } catch (e) {
@@ -374,7 +379,7 @@ class AuditSummaryScreen extends StatelessWidget {
                     Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('%${audit!.score.toStringAsFixed(0)}',
+                        Text('%${audit!.score % 1 == 0 ? audit!.score.toInt().toString() : audit!.score.toStringAsFixed(1)}',
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 24,
@@ -420,7 +425,7 @@ class AuditSummaryScreen extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
                       color: Theme.of(context).colorScheme.onSurface)),
-              Text('%${score.toStringAsFixed(0)}',
+              Text('%${score % 1 == 0 ? score.toInt().toString() : score.toStringAsFixed(1)}',
                   style: TextStyle(
                       fontWeight: FontWeight.w900, color: color, fontSize: 13)),
             ],
@@ -447,15 +452,8 @@ class AuditSummaryScreen extends StatelessWidget {
       children: [
         _buildSectionHeader(context, 'TESPİT EDİLEN UYGUNSUZLUKLAR'),
         const SizedBox(height: 12),
-        ...ncAnswers.map((ans) {
-          final question =
-              AuditQuestionResolver.resolveAnswer(audit!, ans).question;
-          final ncId = 'NC-${audit!.id}-${ans.questionId}';
-          final nc = nonconformities.where((n) => n.id == ncId).isNotEmpty
-              ? nonconformities.firstWhere((n) => n.id == ncId)
-              : null;
-          final statusColor =
-              nc != null ? _getStatusColor(nc.status) : const Color(0xFFE11D48);
+        ...nonconformities.map((nc) {
+          final statusColor = _getStatusColor(nc.status);
 
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
@@ -472,9 +470,7 @@ class AuditSummaryScreen extends StatelessWidget {
               child: ListTile(
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                onTap: nc != null
-                    ? () => context.push('/nonconformity-detail/${nc.id}')
-                    : null,
+                onTap: () => context.push('/nonconformity-detail/${nc.id}'),
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
@@ -482,7 +478,7 @@ class AuditSummaryScreen extends StatelessWidget {
                       shape: BoxShape.circle),
                   child: Icon(Icons.assignment_late_rounded, color: statusColor),
                 ),
-                title: Text(question.questionText,
+                title: Text(nc.questionText,
                     style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
@@ -490,15 +486,9 @@ class AuditSummaryScreen extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
                 subtitle: Text(
-                    [
-                      if (ans.comment != null && ans.comment!.trim().isNotEmpty) ans.comment!.trim(),
-                      if (ans.additionalComments.isNotEmpty) ...ans.additionalComments.map((c) => '• $c')
-                    ].join('\n').trim().isEmpty 
+                    nc.auditorComment.trim().isEmpty 
                         ? 'Açıklama girilmemiş'
-                        : [
-                            if (ans.comment != null && ans.comment!.trim().isNotEmpty) ans.comment!.trim(),
-                            if (ans.additionalComments.isNotEmpty) ...ans.additionalComments.map((c) => '• $c')
-                          ].join('\n'),
+                        : nc.auditorComment.trim(),
                     style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(context)
@@ -573,61 +563,110 @@ class AuditSummaryScreen extends StatelessWidget {
               ),
             ],
           ),
-          if ((ans.comment != null && ans.comment!.trim().isNotEmpty) || ans.additionalComments.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey.shade900
-                    : Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
-              ),
-              child: Text(
-                [
-                  if (ans.comment != null && ans.comment!.trim().isNotEmpty) ans.comment!.trim(),
+          (() {
+            final ncBlocks = <Map<String, dynamic>>[];
+            final mainComment = ans.comment?.trim() ?? '';
+            final mainPhotos = ans.allPhotoUrls;
+            if (mainComment.isNotEmpty || mainPhotos.isNotEmpty || ans.additionalComments.isNotEmpty) {
+              ncBlocks.add({
+                'title': 'Uygunsuzluk Detayı',
+                'comment': [
+                  if (mainComment.isNotEmpty) mainComment,
                   if (ans.additionalComments.isNotEmpty) ...ans.additionalComments.map((c) => '• $c')
                 ].join('\n\n'),
-                style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
-                    height: 1.5),
-              ),
-            ),
-          ],
-          if (ans.allPhotoUrls.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 74,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: ans.allPhotoUrls.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final path = ans.allPhotoUrls[index];
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image(
-                      image: _answerPhotoProvider(path),
-                      width: 74,
-                      height: 74,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 74,
-                        height: 74,
-                        color: Colors.grey.shade200,
-                        child: const Icon(Icons.broken_image_outlined,
-                            color: Colors.grey),
+                'photos': mainPhotos,
+              });
+            }
+
+            for (var i = 0; i < ans.additionalNonconformities.length; i++) {
+              final addNc = ans.additionalNonconformities[i];
+              final title = ans.additionalNonconformities.length > 1
+                  ? 'İlave Uygunsuzluk ${i + 1}'
+                  : 'İlave Uygunsuzluk';
+              ncBlocks.add({
+                'title': title,
+                'comment': addNc.comment.trim(),
+                'photos': [if (addNc.photoUrl.isNotEmpty) addNc.photoUrl],
+              });
+            }
+
+            if (ncBlocks.isEmpty) return const SizedBox.shrink();
+
+            return Column(
+              children: ncBlocks.map((block) {
+                final title = block['title'] as String;
+                final comment = block['comment'] as String;
+                final photos = block['photos'] as List<String>;
+
+                return Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.all(12),
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey.shade900
+                        : Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: Theme.of(context).dividerColor.withValues(alpha: 0.15)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFE11D48),
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
+                      if (comment.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          comment,
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
+                              height: 1.5),
+                        ),
+                      ],
+                      if (photos.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 60,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: photos.length,
+                            separatorBuilder: (_, __) => const SizedBox(width: 8),
+                            itemBuilder: (context, idx) {
+                              final path = photos[idx];
+                              return ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image(
+                                  image: _answerPhotoProvider(path),
+                                  width: 60,
+                                  height: 60,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    width: 60,
+                                    height: 60,
+                                    color: Colors.grey.shade200,
+                                    child: const Icon(Icons.broken_image_outlined,
+                                        color: Colors.grey, size: 20),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              }).toList(),
+            );
+          })(),
         ],
       ),
     );

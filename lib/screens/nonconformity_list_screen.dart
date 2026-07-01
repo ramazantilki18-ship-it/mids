@@ -622,7 +622,7 @@ class _NonconformityListScreenState extends State<NonconformityListScreen>
                                   .withValues(alpha: 0.65)),
                           const SizedBox(width: 4),
                           Text(
-                            nc.auditorName,
+                            context.read<SystemProvider>().resolveDisplayName(auditorName: nc.auditorName),
                             style: TextStyle(
                               fontSize: 11,
                               color: Theme.of(context).colorScheme.onSurface,
@@ -714,7 +714,7 @@ class _NonconformityListScreenState extends State<NonconformityListScreen>
     shareText += '📍 İstasyon: ${nc.station}\n';
     shareText += '🛤 Hat: ${nc.line}\n';
     shareText += '📅 Tespit Tarihi: $dateStr\n';
-    shareText += '👤 Denetçi: ${nc.auditorName}\n';
+    shareText += '👤 Denetçi: ${context.read<SystemProvider>().resolveDisplayName(auditorName: nc.auditorName)}\n';
     shareText += '📌 Durum: $status\n\n';
     shareText += '🔍 BULGU:\n${nc.questionText}\n\n';
     if (nc.auditorComment.isNotEmpty) {

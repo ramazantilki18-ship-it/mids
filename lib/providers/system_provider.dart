@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import '../data/mock_data.dart';
 import '../models/user_model.dart';
@@ -16,6 +17,19 @@ class SystemProvider extends ChangeNotifier {
   Timer? _announcementTicker;
   bool _isAnnouncementExpirySyncRunning = false;
   Map<String, bool> _announcementVisibilitySnapshot = <String, bool>{};
+
+  // Firestore Subscriptions
+  StreamSubscription? _usersSub;
+  StreamSubscription? _auditTypesSub;
+  StreamSubscription? _questionGroupsSub;
+  StreamSubscription? _legacyQuestionGroupsSub;
+  StreamSubscription? _questionsSub;
+  StreamSubscription? _legacyQuestionsSub;
+  StreamSubscription? _plansSub;
+  StreamSubscription? _announcementsSub;
+  StreamSubscription? _linesStationsSub;
+  StreamSubscription? _authSub;
+  StreamSubscription? _shiftsSub;
 
   // DATA MANAGEMENT STATE
   final Map<String, String> _linesWithColors =
@@ -34,6 +48,24 @@ class SystemProvider extends ChangeNotifier {
   final List<QuestionGroupModel> _questionGroups =
       List.from(MockData.questionGroups);
   final List<QuestionModel> _questions = List.from(MockData.questions);
+  
+  static const List<Map<String, dynamic>> _defaultShifts = [
+    {'code': 'S8', 'name': 'Sabah', 'hours': '06:30 - 15:30', 'type': 'work', 'group': 'sabah', 'requiredAuditCount': 0},
+    {'code': 'S10', 'name': 'Sabah', 'hours': '06:45 - 15:45', 'type': 'work', 'group': 'sabah', 'requiredAuditCount': 0},
+    {'code': 'S12', 'name': 'Sabah', 'hours': '07:00 - 16:00', 'type': 'work', 'group': 'sabah', 'requiredAuditCount': 0},
+    {'code': 'N', 'name': 'Sabah (Normal)', 'hours': '08:00 - 17:00', 'type': 'work', 'group': 'sabah', 'requiredAuditCount': 0},
+    {'code': 'A9', 'name': 'Akşam', 'hours': '14:00 - 23:00', 'type': 'work', 'group': 'aksam', 'requiredAuditCount': 0},
+    {'code': 'A10', 'name': 'Akşam', 'hours': '12:00 - 21:00', 'type': 'work', 'group': 'aksam', 'requiredAuditCount': 0},
+    {'code': 'A11', 'name': 'Akşam', 'hours': '14:30 - 23:30', 'type': 'work', 'group': 'aksam', 'requiredAuditCount': 0},
+    {'code': 'A12', 'name': 'Akşam', 'hours': '14:45 - 23:45', 'type': 'work', 'group': 'aksam', 'requiredAuditCount': 0},
+    {'code': 'A13', 'name': 'Akşam', 'hours': '15:00 - 23:59', 'type': 'work', 'group': 'aksam', 'requiredAuditCount': 0},
+    {'code': 'İ', 'name': 'Haftalık İzin', 'hours': 'Tatil', 'type': 'off', 'group': 'izin', 'requiredAuditCount': 0},
+    {'code': 'Yİ', 'name': 'Yıllık İzin', 'hours': 'İzinli', 'type': 'off', 'group': 'izin', 'requiredAuditCount': 0},
+    {'code': 'R', 'name': 'Rapor', 'hours': 'İstirahat', 'type': 'off', 'group': 'izin', 'requiredAuditCount': 0},
+  ];
+
+  final List<Map<String, dynamic>> _shifts = [];
+  List<Map<String, dynamic>> get shifts => _shifts.isNotEmpty ? _shifts : _defaultShifts;
 
   ThemeMode get themeMode => _themeMode;
   bool get isDarkMode => _themeMode == ThemeMode.dark;
@@ -57,6 +89,33 @@ class SystemProvider extends ChangeNotifier {
   }
 
   List<UserModel> get users => _users;
+
+  String resolveDisplayName({String? auditorId, String? auditorName}) {
+    // Önce ID ile ara
+    if (auditorId != null && auditorId.isNotEmpty) {
+      for (var u in _users) {
+        if (u.id == auditorId) return u.name;
+      }
+    }
+    // Sonra username/name ile ara
+    if (auditorName != null && auditorName.isNotEmpty) {
+      final normalized = auditorName.trim().toLowerCase();
+      final normalizedPrefix = normalized.split('@').first.trim();
+      
+      for (var u in _users) {
+        final uUsername = u.username.trim().toLowerCase();
+        final uUsernamePrefix = uUsername.split('@').first.trim();
+        final uName = u.name.trim().toLowerCase();
+        
+        if (uUsername == normalized ||
+            uUsernamePrefix == normalizedPrefix ||
+            uName == normalized) {
+          return u.name;
+        }
+      }
+    }
+    return auditorName ?? auditorId ?? '';
+  }
   List<TaskModel> get tasks => _tasks;
   List<AnnouncementModel> get announcements =>
       List<AnnouncementModel>.unmodifiable(_announcements);
@@ -391,7 +450,65 @@ class SystemProvider extends ChangeNotifier {
   }
 
   void _initFirestoreUsersSync() {
-    FirebaseFirestore.instance
+    _authSub?.cancel();
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null) {
+        debugPrint('SystemProvider: User authenticated (${user.uid}), starting Firestore sync.');
+        _startFirestoreSync();
+      } else {
+        debugPrint('SystemProvider: No authenticated user, stopping Firestore sync and restoring mock/cached defaults.');
+        _cancelFirestoreSync();
+        _restoreMockData();
+      }
+    }, onError: (e) => debugPrint('Auth State Listener Error: $e'));
+  }
+
+  void _cancelFirestoreSync() {
+    _usersSub?.cancel();
+    _usersSub = null;
+    _auditTypesSub?.cancel();
+    _auditTypesSub = null;
+    _questionGroupsSub?.cancel();
+    _questionGroupsSub = null;
+    _legacyQuestionGroupsSub?.cancel();
+    _legacyQuestionGroupsSub = null;
+    _questionsSub?.cancel();
+    _questionsSub = null;
+    _legacyQuestionsSub?.cancel();
+    _legacyQuestionsSub = null;
+    _plansSub?.cancel();
+    _plansSub = null;
+    _announcementsSub?.cancel();
+    _announcementsSub = null;
+     _linesStationsSub?.cancel();
+    _linesStationsSub = null;
+    _shiftsSub?.cancel();
+    _shiftsSub = null;
+  }
+
+  void _restoreMockData() {
+    _users.clear();
+    _users.addAll(MockData.users);
+
+    _auditTypes.clear();
+    _auditTypes.addAll([AuditTypeModel.fiveS, AuditTypeModel.stationInspection]);
+
+    _questionGroups.clear();
+    _questionGroups.addAll(MockData.questionGroups);
+
+    _questions.clear();
+    _questions.addAll(MockData.questions);
+
+    _announcements.clear();
+    _shifts.clear();
+    
+    notifyListeners();
+  }
+
+  void _startFirestoreSync() {
+    _cancelFirestoreSync();
+
+    _usersSub = FirebaseFirestore.instance
         .collection('users')
         .snapshots()
         .listen((snapshot) {
@@ -403,9 +520,9 @@ class SystemProvider extends ChangeNotifier {
             .map((doc) => UserModel.fromJson({...doc.data(), 'id': doc.id})));
       }
       notifyListeners();
-    });
+    }, onError: (e) => debugPrint('Users Sync Error: $e'));
 
-    FirebaseFirestore.instance.collection('auditTypes').snapshots().listen(
+    _auditTypesSub = FirebaseFirestore.instance.collection('auditTypes').snapshots().listen(
         (snapshot) {
       _auditTypes
         ..clear()
@@ -446,7 +563,7 @@ class SystemProvider extends ChangeNotifier {
       notifyListeners();
     }, onError: (e) => debugPrint('Audit Types Sync Error: $e'));
 
-    FirebaseFirestore.instance
+    _questionGroupsSub = FirebaseFirestore.instance
         .collection('auditQuestionGroups')
         .orderBy('orderIndex')
         .snapshots()
@@ -467,7 +584,7 @@ class SystemProvider extends ChangeNotifier {
       notifyListeners();
     }, onError: (e) => debugPrint('Question Groups Sync Error: $e'));
 
-    FirebaseFirestore.instance.collection('question_groups').snapshots().listen(
+    _legacyQuestionGroupsSub = FirebaseFirestore.instance.collection('question_groups').snapshots().listen(
         (snapshot) {
       if (_hasNewAuditModel) return;
       if (_questionGroups.isNotEmpty || snapshot.docs.isEmpty) return;
@@ -476,7 +593,7 @@ class SystemProvider extends ChangeNotifier {
       notifyListeners();
     }, onError: (e) => debugPrint('Legacy Question Groups Sync Error: $e'));
 
-    FirebaseFirestore.instance
+    _questionsSub = FirebaseFirestore.instance
         .collection('auditQuestions')
         .orderBy('orderIndex')
         .snapshots()
@@ -496,7 +613,7 @@ class SystemProvider extends ChangeNotifier {
       notifyListeners();
     }, onError: (e) => debugPrint('Questions Sync Error: $e'));
 
-    FirebaseFirestore.instance
+    _legacyQuestionsSub = FirebaseFirestore.instance
         .collection('questions')
         .orderBy('orderIndex')
         .snapshots()
@@ -509,7 +626,7 @@ class SystemProvider extends ChangeNotifier {
     }, onError: (e) => debugPrint('Legacy Questions Sync Error: $e'));
 
     // Plans (Tasks) Real-time Sync
-    FirebaseFirestore.instance.collection('plans').snapshots().listen(
+    _plansSub = FirebaseFirestore.instance.collection('plans').snapshots().listen(
         (snapshot) {
       debugPrint('FIRESTORE: Plans sync (${snapshot.docs.length} docs)');
       _tasks.clear();
@@ -527,7 +644,7 @@ class SystemProvider extends ChangeNotifier {
       notifyListeners();
     }, onError: (e) => debugPrint('Plans Sync Error: $e'));
 
-    FirebaseFirestore.instance.collection('announcements').snapshots().listen(
+    _announcementsSub = FirebaseFirestore.instance.collection('announcements').snapshots().listen(
         (snapshot) {
       debugPrint(
           'FIRESTORE: Announcements sync (${snapshot.docs.length} docs)');
@@ -551,7 +668,7 @@ class SystemProvider extends ChangeNotifier {
     }, onError: (e) => debugPrint('Announcements Sync Error: $e'));
 
     // Lines/Stations Real-time Sync
-    FirebaseFirestore.instance
+    _linesStationsSub = FirebaseFirestore.instance
         .collection('system_config')
         .doc('lines_stations')
         .snapshots()
@@ -616,6 +733,30 @@ class SystemProvider extends ChangeNotifier {
         _seedLinesStationsToFirebase();
       }
     }, onError: (e) => debugPrint('Lines/Stations Sync Error: $e'));
+
+    // Shifts Sync
+    _shiftsSub = FirebaseFirestore.instance
+        .collection('shifts')
+        .snapshots()
+        .listen((snapshot) {
+      debugPrint('FIRESTORE: Shifts sync (${snapshot.docs.length} docs)');
+      _shifts.clear();
+      if (snapshot.docs.isNotEmpty) {
+        for (final doc in snapshot.docs) {
+          final data = doc.data();
+          _shifts.add({
+            'id': doc.id,
+            'code': data['code'] ?? '',
+            'name': data['name'] ?? '',
+            'hours': data['hours'] ?? '',
+            'type': data['type'] ?? 'work',
+            'group': data['group'] ?? 'sabah',
+            'requiredAuditCount': data['requiredAuditCount'] ?? 0,
+          });
+        }
+      }
+      notifyListeners();
+    }, onError: (e) => debugPrint('Shifts Sync Error: $e'));
   }
 
   Future<void> _seedLinesStationsToFirebase() async {
@@ -693,6 +834,8 @@ class SystemProvider extends ChangeNotifier {
   @override
   void dispose() {
     _announcementTicker?.cancel();
+    _authSub?.cancel();
+    _cancelFirestoreSync();
     super.dispose();
   }
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'start_audit_screen.dart';
@@ -38,6 +39,14 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _selectedStation;
   String? _selectedAuditTypeId;
 
+  // Roster Shift & Excuse state
+  bool _rosterLoading = false;
+  String _todayShiftCode = '';
+  String _todayExcuse = '';
+  bool _excuseDialogShown = false;
+  Map<String, dynamic> _currentMonthDays = {};
+  final TextEditingController _excuseController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -48,7 +57,306 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkUpdates();
+      _loadTodayRoster();
     });
+  }
+
+  Future<void> _loadTodayRoster() async {
+    final auth = context.read<AuthProvider>();
+    final user = auth.user;
+    if (user == null) return;
+
+    if (mounted) {
+      setState(() {
+        _rosterLoading = true;
+      });
+    }
+
+    try {
+      final now = DateTime.now();
+      final docId = '${user.id}_${now.year}_${now.month}';
+      final doc = await FirebaseFirestore.instance
+          .collection('user_rosters')
+          .doc(docId)
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        final days = doc.data()?['days'] as Map?;
+        if (days != null) {
+          if (mounted) {
+            setState(() {
+              _currentMonthDays = Map<String, dynamic>.from(days);
+              final todayData = _currentMonthDays['${now.day}'];
+              if (todayData is Map) {
+                _todayShiftCode = todayData['shift']?.toString() ?? '';
+                _todayExcuse = todayData['excuse']?.toString() ?? '';
+                _excuseController.text = _todayExcuse;
+              }
+            });
+          }
+          return;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _currentMonthDays = {};
+          _todayShiftCode = '';
+          _todayExcuse = '';
+          _excuseController.clear();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading today roster: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _rosterLoading = false;
+        });
+        _checkAndShowExcuseDialogAuto();
+      }
+    }
+  }
+
+  Future<void> _submitExcuse(String excuseText, DateTime targetDate) async {
+    if (excuseText.trim().isEmpty) return;
+    final auth = context.read<AuthProvider>();
+    final user = auth.user;
+    if (user == null) return;
+
+    if (mounted) {
+      setState(() {
+        _rosterLoading = true;
+      });
+    }
+
+    try {
+      final docId = '${user.id}_${targetDate.year}_${targetDate.month}';
+      final docRef = FirebaseFirestore.instance.collection('user_rosters').doc(docId);
+
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final snapshot = await transaction.get(docRef);
+
+        Map<String, dynamic> daysData = {};
+        if (snapshot.exists && snapshot.data() != null) {
+          final data = snapshot.data()!;
+          if (data['days'] != null) {
+            daysData = Map<String, dynamic>.from(data['days']);
+          }
+        }
+
+        final targetDayData = Map<String, dynamic>.from(daysData['${targetDate.day}'] as Map? ?? {});
+        targetDayData['excuse'] = excuseText.trim();
+        daysData['${targetDate.day}'] = targetDayData;
+
+        transaction.set(docRef, {
+          'userId': user.id,
+          'userName': user.name,
+          'year': targetDate.year,
+          'month': targetDate.month,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'days': daysData,
+        }, SetOptions(merge: true));
+      });
+
+      await _loadTodayRoster();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Mazeretiniz başarıyla kaydedildi.')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error saving excuse: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Mazeret kaydedilirken hata oluştu: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _rosterLoading = false;
+        });
+      }
+    }
+  }
+
+  void _openExcuseDialog(BuildContext context, int target, int completed, DateTime targetDate, {bool isDismissible = false}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    _excuseController.clear();
+
+    final dateStr = DateFormat('dd.MM.yyyy').format(targetDate);
+
+    showDialog(
+      context: context,
+      barrierDismissible: isDismissible,
+      builder: (context) {
+        return PopScope(
+          canPop: isDismissible,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: AppColors.accentOrange),
+                const SizedBox(width: 8),
+                Text(
+                  '$dateStr Mazereti',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  '$dateStr tarihinde yapmanız gereken $target denetimden $completed adedini tamamladınız. Lütfen hedef eksikliğinin mazeretini giriniz:',
+                  style: const TextStyle(fontSize: 13.5, height: 1.4),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _excuseController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'Mazeret nedeni yazınız...',
+                    hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black38, fontSize: 13),
+                    fillColor: isDark ? Colors.black26 : Colors.grey[50],
+                    filled: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: Theme.of(context).dividerColor),
+                    ),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                  style: const TextStyle(fontSize: 13.5),
+                ),
+              ],
+            ),
+            actions: [
+              if (isDismissible)
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    foregroundColor: isDark ? Colors.white70 : Colors.grey[700],
+                  ),
+                  child: const Text('VAZGEÇ'),
+                ),
+              ElevatedButton(
+                onPressed: () {
+                  if (_excuseController.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Lütfen bir mazeret yazınız.')),
+                    );
+                    return;
+                  }
+                  final txt = _excuseController.text;
+                  Navigator.pop(context);
+                  _submitExcuse(txt, targetDate);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accentOrange,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('GÖNDER'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _checkAndShowExcuseDialogAuto() async {
+    if (!mounted) return;
+    if (_excuseDialogShown) return;
+
+    final auth = context.read<AuthProvider>();
+    final user = auth.user;
+    if (user == null) return;
+
+    // Check role constraints
+    if (user.role != UserRole.fieldAuditor && user.role != UserRole.fieldAuditorActionOwner) {
+      return;
+    }
+
+    // Check title constraints
+    final String titleLower = (user.jobTitle ?? '').trim().toLowerCase();
+    String cleanText(String s) {
+      return s
+          .replaceAll('ı', 'i')
+          .replaceAll('ğ', 'g')
+          .replaceAll('ü', 'u')
+          .replaceAll('ş', 's')
+          .replaceAll('ö', 'o')
+          .replaceAll('ç', 'c')
+          .replaceAll('â', 'a');
+    }
+    final cleanTitle = cleanText(titleLower);
+    final isSupervisorOrManager = cleanTitle.contains('hat vardiya amiri') || cleanTitle.contains('istasyon sorumlusu');
+    if (isSupervisorOrManager) return;
+
+    final now = DateTime.now();
+    final yesterday = now.subtract(const Duration(days: 1));
+
+    // Get yesterday roster details
+    Map? yesterdayData;
+    if (yesterday.month == now.month) {
+      yesterdayData = _currentMonthDays['${yesterday.day}'] as Map?;
+    } else {
+      // Month transition - fetch yesterday's roster
+      try {
+        final docId = '${user.id}_${yesterday.year}_${yesterday.month}';
+        final doc = await FirebaseFirestore.instance.collection('user_rosters').doc(docId).get();
+        if (doc.exists && doc.data() != null) {
+          final days = doc.data()?['days'] as Map?;
+          yesterdayData = days?['${yesterday.day}'] as Map?;
+        }
+      } catch (e) {
+        debugPrint('Error loading yesterday roster for transition: $e');
+      }
+    }
+
+    final String shiftCode = yesterdayData?['shift']?.toString() ?? '';
+    final String excuseText = yesterdayData?['excuse']?.toString() ?? '';
+
+    if (shiftCode.isEmpty) return;
+
+    final system = context.read<SystemProvider>();
+    final shift = system.shifts.firstWhere(
+      (s) => s['code'] == shiftCode,
+      orElse: () => <String, dynamic>{},
+    );
+    final bool isWorkShift = shift['type'] == 'work';
+    final int requiredCount = shift['requiredAuditCount'] as int? ?? 0;
+    final int targetCount = isWorkShift ? requiredCount : 0;
+
+    if (targetCount <= 0) return;
+
+    // Calculate completed count for yesterday
+    final audit = context.read<AuditProvider>();
+    final completedCount = audit.auditHistory.where((a) {
+      return a.auditorId == user.id &&
+          a.date.year == yesterday.year &&
+          a.date.month == yesterday.month &&
+          a.date.day == yesterday.day &&
+          a.isCompleted;
+    }).length;
+
+    final int remainingCount = (targetCount - completedCount).clamp(0, targetCount);
+
+    if (remainingCount > 0 && excuseText.isEmpty) {
+      setState(() {
+        _excuseDialogShown = true;
+      });
+      // Show dialog after current frame build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _openExcuseDialog(context, targetCount, completedCount, yesterday);
+        }
+      });
+    }
   }
 
   Future<void> _checkUpdates() async {
@@ -67,6 +375,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _announcementRefreshTimer?.cancel();
+    _excuseController.dispose();
     super.dispose();
   }
 
@@ -107,15 +416,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 12),
 
-            _buildAnnouncementPanel(context, activeAnnouncements),
-
-            const SizedBox(height: 12),
-
-            if (user.role == UserRole.executiveViewerGlobal ||
-                user.role == UserRole.executiveViewerRestricted)
-              const ManagerMonthlyStatsWidget()
-            else
-              _buildPlannedTasksPanel(context, myCurrentMonthTasks),
+            _buildShiftProgressCard(context, user, systemProvider, auditProvider),
 
             const SizedBox(height: 12),
 
@@ -228,12 +529,24 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
             ],
             if (user.role != UserRole.executiveViewerGlobal &&
-                user.role != UserRole.executiveViewerRestricted)
+                user.role != UserRole.executiveViewerRestricted) ...[
               _buildEmbeddedStartAuditForm(
                   context, user, systemProvider, auditProvider),
+              const SizedBox(height: 12),
+            ],
+
+            _buildAnnouncementPanel(context, activeAnnouncements),
+
+            const SizedBox(height: 12),
+
+            if (user.role == UserRole.executiveViewerGlobal ||
+                user.role == UserRole.executiveViewerRestricted)
+              const ManagerMonthlyStatsWidget()
+            else
+              _buildPlannedTasksPanel(context, myCurrentMonthTasks),
 
             const SizedBox(height: 16),
           ],
@@ -399,7 +712,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Expanded(
                 child: Text(
-                  '$greeting | ${user.username}',
+                  '$greeting | ${user.name} (${user.title})',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -946,6 +1259,48 @@ class _HomeScreenState extends State<HomeScreen> {
     return 'İyi akşamlar';
   }
 
+  InputDecoration _embeddedInputDecoration({
+    required BuildContext context,
+    required String labelText,
+    required IconData prefixIcon,
+    bool isDark = false,
+  }) {
+    final primary = Theme.of(context).primaryColor;
+    return InputDecoration(
+      labelText: labelText,
+      labelStyle: TextStyle(
+        fontSize: 12.5,
+        fontWeight: FontWeight.w600,
+        color: isDark ? Colors.white60 : Colors.black45,
+      ),
+      filled: true,
+      fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      prefixIcon: Icon(prefixIcon, color: primary, size: 18),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: primary.withValues(alpha: isDark ? 0.3 : 0.15),
+          width: 1,
+        ),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: primary.withValues(alpha: isDark ? 0.2 : 0.1),
+          width: 1,
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: primary,
+          width: 1.5,
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmbeddedStartAuditForm(BuildContext context, UserModel user,
       SystemProvider system, AuditProvider auditProvider) {
     final hasGlobalLineAccess = user.hasGlobalLineAccess;
@@ -995,218 +1350,340 @@ class _HomeScreenState extends State<HomeScreen> {
             ? _selectedAuditTypeId
             : null;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(18),
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Theme.of(context).primaryColor.withValues(
-              alpha: Theme.of(context).brightness == Brightness.dark
-                  ? 0.24
-                  : 0.10),
+          color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.08),
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).primaryColor.withValues(
-                alpha: Theme.of(context).brightness == Brightness.dark
-                    ? 0.14
-                    : 0.07),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Yeni Denetim Başlat',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-           const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            value: selectedLineValue,
-            dropdownColor: Theme.of(context).cardTheme.color,
-            decoration: _inputDecoration(),
-            hint: Text(
-              'Hat seçin',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.6),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header Bar (Metro Blue)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDark
+                      ? [const Color(0xFF001B3B), const Color(0xFF002B5B)]
+                      : [AppColors.primary, AppColors.primaryLight],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                border: Border(
+                  bottom: BorderSide(
+                    color: AppColors.accentRed.withValues(alpha: 0.85),
+                    width: 2,
+                  ),
+                ),
               ),
-            ),
-            items: visibleLines
-                .map((l) => DropdownMenuItem(value: l, child: Text(l)))
-                .toList(),
-            onChanged: (val) {
-              setState(() {
-                _selectedLine = val;
-                _selectedStation = null;
-              });
-            },
-          ),
-           const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            value: selectedStationValue,
-            dropdownColor: Theme.of(context).cardTheme.color,
-            decoration: _inputDecoration(),
-            hint: Text(
-              'İstasyon seçin',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.6),
-              ),
-            ),
-            items: visibleStations
-                .map((s) => DropdownMenuItem<String>(value: s, child: Text(s)))
-                .toList(),
-            onChanged: (val) => setState(() => _selectedStation = val),
-          ),
-           const SizedBox(height: 8),
-          _buildDropdownLabel('Denetim Tipi'),
-          AuditTypeSelector(
-            auditTypes: activeAuditTypes,
-            selectedAuditTypeId: selectedAuditTypeValue,
-            onChanged: (val) => setState(() => _selectedAuditTypeId = val),
-          ),
-           const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            height: 42,
-            child: ElevatedButton(
-              onPressed: (selectedLineValue != null &&
-                      selectedStationValue != null &&
-                      selectedAuditTypeValue != null)
-                  ? () async {
-                      final line = selectedLineValue;
-                      final station = selectedStationValue;
-                      final auditTypeId = selectedAuditTypeValue;
-
-                      final selectedAuditType = activeAuditTypes.firstWhere(
-                        (t) => t.id == auditTypeId,
-                        orElse: () => activeAuditTypes.first,
-                      );
-                      final auditQuestions =
-                          system.questionsForAuditType(selectedAuditType);
-                      if (auditQuestions.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'Seçili denetim tipi için aktif soru bulunamadı.')),
-                        );
-                        return;
-                      }
-
-                      if (auditProvider.currentAudit != null &&
-                          !auditProvider.currentAudit!.isCompleted) {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (dialogContext) => AlertDialog(
-                            title: const Text('Aktif Denetim Var',
-                                style: TextStyle(fontWeight: FontWeight.bold)),
-                            content: const Text(
-                                'Yarım kalmış aktif bir denetiminiz bulunuyor. Yeni bir denetim başlatırsanız mevcut denetim kaybolacaktır. Yine de devam etmek istiyor musunuz?'),
-                            actions: [
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.pop(dialogContext, false),
-                                child: const Text('İPTAL'),
-                              ),
-                              ElevatedButton(
-                                onPressed: () =>
-                                    Navigator.pop(dialogContext, true),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.accentRed,
-                                  foregroundColor: Colors.white,
-                                ),
-                                child: const Text('YENİ DENETİM BAŞLAT'),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-
-                      // Verification Check (NFC & Location)
-                      final nfcKey = '${line}_$station';
-                      final nfcData = system.stationNfcs[nfcKey];
-                      String? expectedNfcUid;
-                      if (nfcData is Map) {
-                        expectedNfcUid = nfcData['uid']?.toString();
-                      } else if (nfcData is String) {
-                        expectedNfcUid = nfcData;
-                      }
-
-                      final locData = system.stationLocations[nfcKey];
-                      Map<String, dynamic>? locationConfig;
-                      if (locData is Map<String, dynamic>) {
-                        locationConfig = locData;
-                      } else if (locData is Map) {
-                        locationConfig = Map<String, dynamic>.from(locData);
-                      }
-
-                      final hasNfc = expectedNfcUid != null && expectedNfcUid.isNotEmpty;
-                      final hasLocation = locationConfig != null &&
-                          locationConfig['latitude'] != null &&
-                          locationConfig['longitude'] != null;
-
-                      if (hasNfc || hasLocation) {
-                        if (context.mounted) {
-                          final verified = await showDialog<bool>(
-                            context: context,
-                            barrierDismissible: false,
-                            builder: (dialogContext) => VerificationFlowDialog(
-                              expectedNfcUid: expectedNfcUid,
-                              locationConfig: locationConfig,
-                              stationName: station,
-                            ),
-                          );
-                          if (verified != true) return;
-                        }
-                      }
-
-                      auditProvider.startNewAudit(
-                        line: line,
-                        station: station,
-                        auditorId: user.id,
-                        auditorName: user.name,
-                        auditType: selectedAuditType.title,
-                        questions: auditQuestions,
-                        auditTypeConfig: selectedAuditType,
-                      );
-                      if (context.mounted) {
-                        context.push('/audit-questions');
-                      }
-                    }
-                  : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accentRed,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                elevation: 4,
-              ),
-              child: const Text('DENETİME BAŞLA',
-                  style: TextStyle(
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.assignment_add,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'YENİ DENETİM BAŞLAT',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w900,
-                      fontSize: 14,
-                      letterSpacing: 1.2)),
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            // Body (Form)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: selectedLineValue,
+                    dropdownColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                    decoration: _embeddedInputDecoration(
+                      context: context,
+                      labelText: 'Hat',
+                      prefixIcon: Icons.route_rounded,
+                      isDark: isDark,
+                    ),
+                    items: visibleLines
+                        .map((l) => DropdownMenuItem(value: l, child: Text(l)))
+                        .toList(),
+                    onChanged: (val) {
+                      setState(() {
+                        _selectedLine = val;
+                        _selectedStation = null;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: selectedStationValue,
+                    dropdownColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                    decoration: _embeddedInputDecoration(
+                      context: context,
+                      labelText: 'İstasyon / Bölge',
+                      prefixIcon: Icons.pin_drop_rounded,
+                      isDark: isDark,
+                    ),
+                    items: visibleStations
+                        .map((s) => DropdownMenuItem<String>(value: s, child: Text(s)))
+                        .toList(),
+                    onChanged: (val) => setState(() => _selectedStation = val),
+                  ),
+                  const SizedBox(height: 14),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, bottom: 2),
+                    child: Text(
+                      'DENETİM TİPİ SEÇİN',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                        color: isDark ? Colors.white60 : Colors.black54,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                  AuditTypeSelector(
+                    auditTypes: activeAuditTypes,
+                    selectedAuditTypeId: selectedAuditTypeValue,
+                    onDark: isDark,
+                    onChanged: (val) => setState(() => _selectedAuditTypeId = val),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 42,
+                    child: ElevatedButton(
+                      onPressed: (selectedLineValue != null &&
+                              selectedStationValue != null &&
+                              selectedAuditTypeValue != null)
+                          ? () async {
+                              final line = selectedLineValue;
+                              final station = selectedStationValue;
+                              final auditTypeId = selectedAuditTypeValue;
+
+                              final selectedAuditType = activeAuditTypes.firstWhere(
+                                (t) => t.id == auditTypeId,
+                                orElse: () => activeAuditTypes.first,
+                              );
+                              final auditQuestions =
+                                  system.questionsForAuditType(selectedAuditType);
+                              if (auditQuestions.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text(
+                                          'Seçili denetim tipi için aktif soru bulunamadı.')),
+                                );
+                                return;
+                              }
+
+                              // Mükerrer denetim uyarısı (Son 10 dakika)
+                              final recentDuplicate = auditProvider.auditHistory.where((a) =>
+                                  a.station == station &&
+                                  a.auditTypeId == auditTypeId &&
+                                  DateTime.now().difference(a.date).inMinutes.abs() < 10
+                              ).firstOrNull;
+
+                              if (recentDuplicate != null) {
+                                final formattedTime = DateFormat('HH:mm').format(recentDuplicate.date);
+                                final auditorDisplayName = system.resolveDisplayName(
+                                  auditorId: recentDuplicate.auditorId,
+                                  auditorName: recentDuplicate.auditorName,
+                                );
+                                if (context.mounted) {
+                                  final confirmDuplicate = await showDialog<bool>(
+                                    context: context,
+                                    builder: (dialogContext) => AlertDialog(
+                                      title: const Row(
+                                        children: [
+                                          Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                                          SizedBox(width: 8),
+                                          Text('Mükerrer Denetim Uyarısı', style: TextStyle(fontWeight: FontWeight.bold)),
+                                        ],
+                                      ),
+                                      content: Text(
+                                        'Bu istasyonda son 10 dakika içinde ($formattedTime\'de) $auditorDisplayName tarafından aynı tipte bir denetim zaten gerçekleştirilmiştir.\n\nYine de yeni bir denetim başlatmak istiyor musunuz?'
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(dialogContext, false),
+                                          child: const Text('VAZGEÇ'),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () => Navigator.pop(dialogContext, true),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.orange,
+                                            foregroundColor: Colors.white,
+                                          ),
+                                          child: const Text('DEVAM ET'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirmDuplicate != true) return;
+                                }
+                              }
+
+                              if (auditProvider.currentAudit != null &&
+                                  !auditProvider.currentAudit!.isCompleted) {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (dialogContext) => AlertDialog(
+                                    title: const Text('Aktif Denetim Var',
+                                        style: TextStyle(fontWeight: FontWeight.bold)),
+                                    content: const Text(
+                                        'Yarım kalmış aktif bir denetiminiz bulunuyor. Yeni bir denetim başlatırsanız mevcut denetim kaybolacaktır. Yine de devam etmek istiyor musunuz?'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(dialogContext, false),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withValues(alpha: 0.7),
+                                        ),
+                                        child: const Text('VAZGEÇ'),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () =>
+                                            Navigator.pop(dialogContext, true),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.accentRed,
+                                          foregroundColor: Colors.white,
+                                        ),
+                                        child: const Text('DENETİMİ SİL'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirm != true) return;
+                              }
+
+                              // Verification Check (NFC & Location)
+                              final nfcKey = '${line}_$station';
+                              final nfcData = system.stationNfcs[nfcKey];
+                              String? expectedNfcUid;
+                              if (nfcData is Map) {
+                                expectedNfcUid = nfcData['uid']?.toString();
+                              } else if (nfcData is String) {
+                                expectedNfcUid = nfcData;
+                              }
+
+                              final locData = system.stationLocations[nfcKey];
+                              Map<String, dynamic>? locationConfig;
+                              if (locData is Map<String, dynamic>) {
+                                locationConfig = locData;
+                              } else if (locData is Map) {
+                                locationConfig = Map<String, dynamic>.from(locData);
+                              }
+
+                              final hasNfc = expectedNfcUid != null && expectedNfcUid.isNotEmpty;
+                              final hasLocation = locationConfig != null &&
+                                  locationConfig['latitude'] != null &&
+                                  locationConfig['longitude'] != null;
+
+                              if (hasNfc || hasLocation) {
+                                if (context.mounted) {
+                                  final verified = await showDialog<bool>(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (dialogContext) => VerificationFlowDialog(
+                                      expectedNfcUid: expectedNfcUid,
+                                      locationConfig: locationConfig,
+                                      stationName: station,
+                                    ),
+                                  );
+                                  if (verified != true) return;
+                                }
+                              }
+
+                              auditProvider.startNewAudit(
+                                line: line,
+                                station: station,
+                                auditorId: user.id,
+                                auditorName: user.name,
+                                auditType: selectedAuditType.title,
+                                questions: auditQuestions,
+                                auditTypeConfig: selectedAuditType,
+                              );
+                              if (context.mounted) {
+                                context.push('/audit-questions');
+                              }
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accentRed,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
+                        disabledForegroundColor: isDark ? Colors.white24 : Colors.black26,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.play_arrow_rounded,
+                            size: 18,
+                            color: (selectedLineValue != null &&
+                                    selectedStationValue != null &&
+                                    selectedAuditTypeValue != null)
+                                ? Colors.white
+                                : (isDark ? Colors.white24 : Colors.black26),
+                          ),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'DENETİME BAŞLA',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13.5,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1281,4 +1758,341 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     return cleanA.length.compareTo(cleanB.length);
   }
+
+  Widget _buildShiftProgressCard(
+      BuildContext context, UserModel user, SystemProvider system, AuditProvider audit) {
+    if (user.role != UserRole.fieldAuditor && user.role != UserRole.fieldAuditorActionOwner) {
+      return const SizedBox.shrink();
+    }
+
+    final String titleLower = (user.jobTitle ?? '').trim().toLowerCase();
+    String cleanText(String s) {
+      return s
+          .replaceAll('ı', 'i')
+          .replaceAll('ğ', 'g')
+          .replaceAll('ü', 'u')
+          .replaceAll('ş', 's')
+          .replaceAll('ö', 'o')
+          .replaceAll('ç', 'c')
+          .replaceAll('â', 'a');
+    }
+    final cleanTitle = cleanText(titleLower);
+    final isSupervisorOrManager = cleanTitle.contains('hat vardiya amiri') || cleanTitle.contains('istasyon sorumlusu');
+
+    if (isSupervisorOrManager) {
+      return const SizedBox.shrink();
+    }
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    // Find today's shift configuration
+    final shift = system.shifts.firstWhere(
+      (s) => s['code'] == _todayShiftCode,
+      orElse: () => <String, dynamic>{},
+    );
+
+    final String shiftCode = _todayShiftCode.isEmpty ? 'Belirlenmedi' : _todayShiftCode;
+    final String shiftName = shift['name']?.toString() ?? 'Atanmamış';
+    final String shiftHours = shift['hours']?.toString() ?? '';
+    final bool isWorkShift = shift['type'] == 'work';
+    final int requiredCount = shift['requiredAuditCount'] as int? ?? 0;
+    final int targetCount = isWorkShift ? requiredCount : 0;
+
+    // Calculate completed count for today
+    final now = DateTime.now();
+    final completedCount = audit.auditHistory.where((a) {
+      return a.auditorId == user.id &&
+          a.date.year == now.year &&
+          a.date.month == now.month &&
+          a.date.day == now.day &&
+          a.isCompleted;
+    }).length;
+
+    final int remainingCount = (targetCount - completedCount).clamp(0, targetCount);
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Theme.of(context).primaryColor.withValues(alpha: isDark ? 0.24 : 0.1),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header of Roster Card
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDark
+                    ? [const Color(0xFF0D1B2A), const Color(0xFF1B263B)]
+                    : [AppColors.primary, AppColors.primaryLight],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+              border: const Border(
+                bottom: BorderSide(
+                  color: AppColors.accentRed,
+                  width: 2.0,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.schedule_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'GÜNLÜK VARDİYA BİLGİSİ',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12.5,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+                if (targetCount > 0) ...[
+                  if (remainingCount == 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.accentGreen,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.white, size: 12),
+                          SizedBox(width: 4),
+                          Text(
+                            'HEDEF TAMAMLANDI',
+                            style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (_todayExcuse.isEmpty)
+                    GestureDetector(
+                      onTap: () => _openExcuseDialog(context, targetCount, completedCount, DateTime.now(), isDismissible: true),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFFFB923C) : AppColors.accentOrange,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.warning_amber_rounded, color: Colors.white, size: 12),
+                            SizedBox(width: 4),
+                            Text(
+                              'MAZERET BİLDİR',
+                              style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: (isDark ? const Color(0xFFFB923C) : AppColors.accentOrange).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: (isDark ? const Color(0xFFFB923C) : AppColors.accentOrange).withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_rounded, color: isDark ? const Color(0xFFFB923C) : AppColors.accentOrange, size: 12),
+                          const SizedBox(width: 4),
+                          Text(
+                            'MAZERET BİLDİRİLDİ',
+                            style: TextStyle(color: isDark ? const Color(0xFFFB923C) : AppColors.accentOrange, fontSize: 9, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ],
+            ),
+          ),
+          
+          // Card Body
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Left: Shift info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).primaryColor.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  shiftCode,
+                                  style: TextStyle(
+                                    color: Theme.of(context).primaryColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  shiftName,
+                                  style: TextStyle(
+                                    color: isDark ? Colors.white : Colors.black87,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (shiftHours.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.access_time_rounded,
+                                  size: 14,
+                                  color: isDark ? Colors.white60 : Colors.black54,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  shiftHours,
+                                  style: TextStyle(
+                                    color: isDark ? Colors.white60 : Colors.black54,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    // Right: Target & Completed counters
+                    if (targetCount > 0) ...[
+                      Container(
+                        height: 40,
+                        width: 1,
+                        color: Theme.of(context).dividerColor,
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                      ),
+                      _buildCounterBox(context, 'Hedef', targetCount.toString(), isDark),
+                      const SizedBox(width: 14),
+                      _buildCounterBox(context, 'Yapılan', completedCount.toString(), isDark, color: AppColors.primary),
+                      const SizedBox(width: 14),
+                      _buildCounterBox(
+                        context, 
+                        'Kalan', 
+                        remainingCount.toString(), 
+                        isDark, 
+                        color: remainingCount > 0 ? AppColors.accentRed : AppColors.accentGreen
+                      ),
+                    ] else ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white10 : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          isWorkShift ? 'Denetim hedefi tanımlanmamış' : 'Bugün izinlisiniz',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: isDark ? Colors.white60 : Colors.black54,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (_todayExcuse.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Divider(height: 1, color: Theme.of(context).dividerColor),
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 14,
+                        color: isDark ? const Color(0xFFFB923C) : AppColors.accentOrange,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Mazeretiniz: $_todayExcuse',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.white70 : Colors.black87,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCounterBox(BuildContext context, String label, String value, bool isDark, {Color? color}) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: isDark ? Colors.white60 : Colors.black54,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: color ?? (isDark ? Colors.white : Colors.black87),
+          ),
+        ),
+      ],
+    );
+  }
+
+
 }

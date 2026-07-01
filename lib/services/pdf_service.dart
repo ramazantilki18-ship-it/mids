@@ -43,7 +43,7 @@ class PdfService {
     return upper;
   }
 
-  static Future<void> exportAndShareAudit(AuditModel audit) async {
+  static Future<void> exportAndShareAudit(AuditModel audit, {String? resolvedAuditorName}) async {
     try {
       final pdf = pw.Document();
 
@@ -55,93 +55,85 @@ class PdfService {
         (await rootBundle.load('assets/images/brand_badge.png')).buffer.asUint8List(),
       );
 
+      Future<pw.Widget?> downloadAndBuildImageWidget(String path) async {
+        if (path.isEmpty) return null;
+        try {
+          if (path.startsWith('http')) {
+            try {
+              final imageUrl = StorageService.optimizedImageUrl(path);
+              debugPrint('PdfService: downloading image $imageUrl');
+              final resp = await http.get(Uri.parse(imageUrl));
+              if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
+                final imgBytes = Uint8List.fromList(resp.bodyBytes);
+                final image = pw.MemoryImage(imgBytes);
+                return pw.Container(
+                  width: PdfPageFormat.a4.availableWidth * 0.25,
+                  height: 56,
+                  child: pw.Image(image, fit: pw.BoxFit.contain),
+                );
+              }
+            } catch (e) {
+              debugPrint('PdfService: image download failed: $e');
+            }
+          } else if (path.startsWith('assets/')) {
+            try {
+              final data = await rootBundle.load(path);
+              final imgBytes = data.buffer.asUint8List();
+              if (imgBytes.isNotEmpty) {
+                final image = pw.MemoryImage(imgBytes);
+                return pw.Container(
+                  width: PdfPageFormat.a4.availableWidth * 0.25,
+                  height: 56,
+                  child: pw.Image(image, fit: pw.BoxFit.contain),
+                );
+              }
+            } catch (e) {
+              debugPrint('PdfService: asset image failed: $e');
+            }
+          } else {
+            try {
+              final file = File(path);
+              if (file.existsSync()) {
+                final bytes = file.readAsBytesSync();
+                if (bytes.isNotEmpty) {
+                  final image = pw.MemoryImage(bytes);
+                  return pw.Container(
+                    width: PdfPageFormat.a4.availableWidth * 0.25,
+                    height: 56,
+                    child: pw.Image(image, fit: pw.BoxFit.contain),
+                  );
+                }
+              }
+            } catch (e) {
+              debugPrint('PdfService: local image failed: $e');
+            }
+          }
+        } catch (e) {
+          debugPrint('PdfService: error processing image $path: $e');
+        }
+        return null;
+      }
+
       // Preload images per answer - small and uniform size
       final Map<String, List<pw.Widget>> answerImages = {};
+      final Map<String, pw.Widget> additionalNcImages = {};
+
       for (var ans in audit.answers) {
         final widgets = <pw.Widget>[];
-        final photoPaths = ans.allPhotoUrls;
-        if (photoPaths.isEmpty) {
-          debugPrint('PdfService: no photos for answer ${ans.questionId}');
-          answerImages[ans.questionId] = widgets;
-          continue;
-        }
-        debugPrint('PdfService: processing ${photoPaths.length} photos for answer ${ans.questionId}');
-        for (var path in photoPaths) {
-          debugPrint('PdfService: photo path=$path');
-          try {
-            if (path.startsWith('http')) {
-              try {
-                final imageUrl = StorageService.optimizedImageUrl(path);
-                debugPrint('PdfService: downloading image $imageUrl');
-                final resp = await http.get(Uri.parse(imageUrl));
-                debugPrint('PdfService: image download status ${resp.statusCode}, bytes=${resp.bodyBytes.length}');
-                if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
-                  final imgBytes = Uint8List.fromList(resp.bodyBytes);
-                  final image = pw.MemoryImage(imgBytes);
-                  widgets.add(pw.Container(
-                    width: PdfPageFormat.a4.availableWidth * 0.3,
-                    height: 64,
-                    margin: const pw.EdgeInsets.only(bottom: 6),
-                    child: pw.Image(image, fit: pw.BoxFit.contain),
-                  ));
-                } else {
-                  widgets.add(pw.Text('Resim indirilemedi: $path',
-                      style: pw.TextStyle(font: ttf)));
-                }
-              } catch (e) {
-                debugPrint('PdfService: image download failed: $e');
-                widgets.add(pw.Text('Resim indirilemedi (CORS): $path',
-                    style: pw.TextStyle(font: ttf)));
-              }
-            } else if (path.startsWith('assets/')) {
-              try {
-                debugPrint('PdfService: loading asset image: $path');
-                final data = await rootBundle.load(path);
-                final imgBytes = data.buffer.asUint8List();
-                debugPrint('PdfService: asset image bytes=${imgBytes.length}');
-                if (imgBytes.isNotEmpty) {
-                  final image = pw.MemoryImage(imgBytes);
-                  widgets.add(pw.Container(
-                    width: PdfPageFormat.a4.availableWidth * 0.3,
-                    height: 64,
-                    margin: const pw.EdgeInsets.only(bottom: 6),
-                    child: pw.Image(image, fit: pw.BoxFit.contain),
-                  ));
-                }
-              } catch (e) {
-                debugPrint('PdfService: asset image failed: $e');
-                widgets.add(pw.Text('Asset resim yüklenemedi: $path',
-                    style: pw.TextStyle(font: ttf)));
-              }
-            } else {
-              try {
-                final file = File(path);
-                debugPrint('PdfService: checking local file: $path, exists=${file.existsSync()}');
-                if (file.existsSync()) {
-                  final bytes = file.readAsBytesSync();
-                  debugPrint('PdfService: local image bytes=${bytes.length}');
-                  if (bytes.isNotEmpty) {
-                    final image = pw.MemoryImage(bytes);
-                    widgets.add(pw.Container(
-                      width: PdfPageFormat.a4.availableWidth * 0.3,
-                      height: 64,
-                      margin: const pw.EdgeInsets.only(bottom: 6),
-                      child: pw.Image(image, fit: pw.BoxFit.contain),
-                    ));
-                  }
-                } else {
-                  widgets.add(pw.Text('Dosya bulunamadı: $path',
-                      style: pw.TextStyle(font: ttf)));
-                }
-              } catch (e) {
-                debugPrint('PdfService: local image failed: $e');
-              }
-            }
-          } catch (e) {
-            debugPrint('PdfService: error processing image $path: $e');
-          }
+        for (var path in ans.allPhotoUrls) {
+          final w = await downloadAndBuildImageWidget(path);
+          if (w != null) widgets.add(w);
         }
         answerImages[ans.questionId] = widgets;
+
+        for (var nc in ans.additionalNonconformities) {
+          if (nc.photoUrl.isNotEmpty) {
+            final w = await downloadAndBuildImageWidget(nc.photoUrl);
+            if (w != null) {
+              additionalNcImages[nc.id] = w;
+            }
+          }
+        }
       }
 
       // Build PDF - multi page for full content
@@ -195,7 +187,7 @@ class PdfService {
                           pw.SizedBox(height: 6),
                           pw.Text('Denetim ID: ${audit.id.replaceAll('AUD', 'DNT')}', style: pw.TextStyle(font: ttf, fontSize: 10, color: PdfColors.blueGrey200)),
                           pw.Text('Tarih: ${DateFormat('dd.MM.yyyy HH:mm').format(audit.date)}', style: pw.TextStyle(font: ttf, fontSize: 10, color: PdfColors.blueGrey200)),
-                          pw.Text('Denetçi: ${audit.auditorName}', style: pw.TextStyle(font: ttf, fontSize: 10, color: PdfColors.blueGrey200)),
+                          pw.Text('Denetçi: ${resolvedAuditorName ?? audit.auditorName}', style: pw.TextStyle(font: ttf, fontSize: 10, color: PdfColors.blueGrey200)),
                         ],
                       ),
                     ],
@@ -332,24 +324,15 @@ class PdfService {
                                   children: [
                                     pw.Text('Not: ', style: pw.TextStyle(font: ttf, fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.grey700)),
                                     pw.Expanded(child: pw.Text(
-                                      [
-                                        if (ans.comment != null && ans.comment!.trim().isNotEmpty) ans.comment!.trim(),
-                                        if (ans.additionalComments.isNotEmpty) ...ans.additionalComments.map((c) => '• $c')
-                                      ].join('\n').trim().isEmpty 
-                                          ? 'Belirtilmedi'
-                                          : [
-                                              if (ans.comment != null && ans.comment!.trim().isNotEmpty) ans.comment!.trim(),
-                                              if (ans.additionalComments.isNotEmpty) ...ans.additionalComments.map((c) => '• $c')
-                                            ].join('\n'), 
+                                      (ans.comment != null && ans.comment!.trim().isNotEmpty)
+                                          ? ans.comment!.trim()
+                                          : 'Belirtilmedi',
                                       style: pw.TextStyle(
                                         font: ttf, 
                                         fontSize: 9, 
-                                        color: [
-                                          if (ans.comment != null && ans.comment!.trim().isNotEmpty) ans.comment!.trim(),
-                                          if (ans.additionalComments.isNotEmpty) ...ans.additionalComments
-                                        ].join('').trim().isEmpty 
-                                            ? PdfColors.grey600 
-                                            : PdfColors.black
+                                        color: (ans.comment != null && ans.comment!.trim().isNotEmpty)
+                                            ? PdfColors.black
+                                            : PdfColors.grey600
                                       )
                                     )),
                                   ]
@@ -364,6 +347,41 @@ class PdfService {
                                   runSpacing: 8,
                                   children: answerImages[ans.questionId]!,
                                 ),
+                              ],
+                              if (ans.additionalNonconformities.isNotEmpty) ...[
+                                pw.SizedBox(height: 8),
+                                pw.Text('İlave Uygunsuzluklar:', style: pw.TextStyle(font: ttf, fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.red800)),
+                                pw.SizedBox(height: 4),
+                                ...ans.additionalNonconformities.map((nc) {
+                                  final imgWidget = additionalNcImages[nc.id];
+                                  return pw.Container(
+                                    margin: const pw.EdgeInsets.only(bottom: 6),
+                                    padding: const pw.EdgeInsets.all(6),
+                                    decoration: pw.BoxDecoration(
+                                      color: PdfColors.grey50,
+                                      border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
+                                    ),
+                                    child: pw.Row(
+                                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                                      children: [
+                                        if (imgWidget != null) ...[
+                                          imgWidget,
+                                          pw.SizedBox(width: 8),
+                                        ],
+                                        pw.Expanded(
+                                          child: pw.Column(
+                                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                                            children: [
+                                              pw.Text('Açıklama:', style: pw.TextStyle(font: ttf, fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.grey700)),
+                                              pw.SizedBox(height: 2),
+                                              pw.Text(nc.comment, style: pw.TextStyle(font: ttf, fontSize: 8.5)),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
                               ],
                             ],
                           ),

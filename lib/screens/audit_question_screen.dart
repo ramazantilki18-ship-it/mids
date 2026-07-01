@@ -231,6 +231,7 @@ class AuditQuestionScreen extends StatelessWidget {
               const SizedBox(height: 8),
               _buildAnswerPhotoSection(context, q, ans, audit),
               _buildAdditionalCommentsSection(context, q, ans, audit),
+              _buildAdditionalNonconformitiesSection(context, q, ans, audit),
             ],
             if (ans != null || q.answerType == AnswerType.scale || q.answerType == AnswerType.scale6) ...[
               const SizedBox(height: 8),
@@ -275,12 +276,9 @@ class AuditQuestionScreen extends StatelessWidget {
           height: 52,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            itemCount: photos.length + 1,
+            itemCount: photos.length,
             separatorBuilder: (_, __) => const SizedBox(width: 4),
             itemBuilder: (context, index) {
-              if (index == photos.length) {
-                return _addPhotoTile(context, q, audit);
-              }
               final photo = photos[index];
               return SizedBox(
                 width: 48,
@@ -403,6 +401,7 @@ class AuditQuestionScreen extends StatelessWidget {
                 photoPaths: ans?.allPhotoUrls ?? const [],
                 photos: ans?.photos,
                 additionalComments: ans?.additionalComments ?? const [],
+                additionalNonconformities: ans?.additionalNonconformities ?? const [],
               );
               _handleAnswerSelection(context, q, audit, answer);
             }, activeColor: Colors.green)),
@@ -417,6 +416,7 @@ class AuditQuestionScreen extends StatelessWidget {
                 photoPaths: ans?.allPhotoUrls ?? const [],
                 photos: ans?.photos,
                 additionalComments: ans?.additionalComments ?? const [],
+                additionalNonconformities: ans?.additionalNonconformities ?? const [],
               );
               _handleAnswerSelection(context, q, audit, answer);
             }, activeColor: const Color(0xFFE11D48))),
@@ -436,6 +436,7 @@ class AuditQuestionScreen extends StatelessWidget {
               photoPaths: ans?.allPhotoUrls ?? const [],
               photos: ans?.photos,
               additionalComments: ans?.additionalComments ?? const [],
+              additionalNonconformities: ans?.additionalNonconformities ?? const [],
             );
             // _handleAnswerSelection for TextField is tricky because it fires on every keypress.
             // But text fields don't usually require dialogs, they are the comment themselves!
@@ -464,6 +465,7 @@ class AuditQuestionScreen extends StatelessWidget {
                 photoPaths: ans?.allPhotoUrls ?? const [],
                 photos: ans?.photos,
                 additionalComments: ans?.additionalComments ?? const [],
+                additionalNonconformities: ans?.additionalNonconformities ?? const [],
               );
               _handleAnswerSelection(context, q, audit, answer);
             });
@@ -496,6 +498,7 @@ class AuditQuestionScreen extends StatelessWidget {
                       photoPaths: ans?.allPhotoUrls ?? const [],
                       photos: ans?.photos,
                       additionalComments: ans?.additionalComments ?? const [],
+                      additionalNonconformities: ans?.additionalNonconformities ?? const [],
                     );
                     _handleAnswerSelection(context, q, audit, answer);
                   },
@@ -705,6 +708,7 @@ class AuditQuestionScreen extends StatelessWidget {
                                     photos: ans.photos,
                                     additionalComments: ans.additionalComments,
                                     isOutOfScope: ans.isOutOfScope,
+                                    additionalNonconformities: ans.additionalNonconformities,
                                   ));
                                 } else {
                                   audit.updateAdditionalComment(q.id, index, tc.text);
@@ -735,6 +739,7 @@ class AuditQuestionScreen extends StatelessWidget {
                           photos: ans.photos,
                           additionalComments: ans.additionalComments,
                           isOutOfScope: ans.isOutOfScope,
+                          additionalNonconformities: ans.additionalNonconformities,
                         ));
                       } else {
                         audit.removeAdditionalComment(q.id, index);
@@ -751,6 +756,64 @@ class AuditQuestionScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildAdditionalNonconformitiesSection(BuildContext context, QuestionModel q, AuditAnswer ans, AuditProvider audit) {
+    if (ans.additionalNonconformities.isEmpty) {
+      return const SizedBox();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 8),
+        Text(
+          'İlave Uygunsuzluklar',
+          style: TextStyle(
+            fontSize: 10.0,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.8),
+          ),
+        ),
+        const SizedBox(height: 6),
+        ...ans.additionalNonconformities.map((nc) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.08)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: PositionBox(path: nc.photoUrl),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    nc.comment,
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+                  onPressed: () => audit.removeAdditionalNonconformity(q.id, nc.id),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
   Widget _buildActionButtons(BuildContext context, QuestionModel q, AuditAnswer? ans, AuditProvider audit) {
     final bool isScale = q.answerType == AnswerType.scale || q.answerType == AnswerType.scale6;
     if (ans == null && !isScale) {
@@ -758,37 +821,31 @@ class AuditQuestionScreen extends StatelessWidget {
     }
 
     final bool isKd = ans?.isOutOfScope == true;
-    final photos = ans != null ? (ans.photos.isNotEmpty ? ans.photos : ans.photoPaths.where((path) => path.isNotEmpty).toList()) : const [];
-    final requiresPhoto = ans != null ? AuditScoringService.requiresEvidencePhoto(auditType: audit.activeAuditType, question: q, answer: ans) : false;
 
     return Row(
       children: [
         if (ans != null) ...[
-          if (photos.isEmpty) ...[
-            ElevatedButton.icon(
-              onPressed: () => _showPhotoSourcePicker(context, q, audit),
-              icon: const Icon(Icons.add_a_photo_rounded, size: 13),
-              label: Text(requiresPhoto ? 'Kanıt Foto' : 'Fotoğraf Ekle', style: const TextStyle(fontSize: 10.5)),
-              style: ElevatedButton.styleFrom(
-                elevation: 0,
-                backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.10),
-                foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Theme.of(context).primaryColor,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                minimumSize: const Size(0, 30),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                textStyle: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-            ),
-            const SizedBox(width: 6),
-          ],
           ElevatedButton.icon(
-            onPressed: () => _showAdditionalCommentDialog(context, q, audit),
-            icon: const Icon(Icons.add, size: 14),
-            label: const Text('Açıklama Ekle', style: TextStyle(fontSize: 10.5)),
+            onPressed: () async {
+              final result = await showDialog<Map<String, dynamic>>(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => _AdditionalNonconformityDialog(question: q),
+              );
+              if (result != null) {
+                audit.addAdditionalNonconformityToAnswer(
+                  q.id,
+                  result['comment'] as String,
+                  result['photoPath'] as String,
+                );
+              }
+            },
+            icon: const Icon(Icons.add_circle_outline_rounded, size: 14),
+            label: const Text('İlave Uygunsuzluk Ekle', style: TextStyle(fontSize: 10.5)),
             style: ElevatedButton.styleFrom(
               elevation: 0,
-              backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.10),
-              foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Theme.of(context).primaryColor,
+              backgroundColor: const Color(0xFFE11D48).withValues(alpha: 0.10),
+              foregroundColor: const Color(0xFFE11D48),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
               minimumSize: const Size(0, 30),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
@@ -816,6 +873,7 @@ class AuditQuestionScreen extends StatelessWidget {
                     photoPaths: const [],
                     photos: const [],
                     additionalComments: const [],
+                    additionalNonconformities: const [],
                   );
                   audit.saveAnswer(answer);
                 },
@@ -1131,6 +1189,7 @@ class _AnswerDetailsDialogState extends State<_AnswerDetailsDialog> {
                 photos: photos,
                 additionalComments: widget.tentativeAnswer.additionalComments,
                 isOutOfScope: widget.tentativeAnswer.isOutOfScope,
+                additionalNonconformities: widget.existing?.additionalNonconformities ?? const [],
               ));
             };
           }(),
@@ -1267,6 +1326,176 @@ class PositionBox extends StatelessWidget {
           child: image,
         ),
       ),
+    );
+  }
+}
+
+class _AdditionalNonconformityDialog extends StatefulWidget {
+  final QuestionModel question;
+  const _AdditionalNonconformityDialog({required this.question});
+
+  @override
+  State<_AdditionalNonconformityDialog> createState() => _AdditionalNonconformityDialogState();
+}
+
+class _AdditionalNonconformityDialogState extends State<_AdditionalNonconformityDialog> {
+  final _commentController = TextEditingController();
+  String? _photoPath;
+  final _picker = ImagePicker();
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? photo = await _picker.pickImage(source: source, imageQuality: 70, maxWidth: 1080);
+      if (photo != null) {
+        final persistentPath = await StorageService.savePhotoPersistently(photo.path);
+        if (mounted) {
+          setState(() => _photoPath = persistentPath);
+        }
+      }
+    } catch (e) {
+      debugPrint('Image pick error: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool canSave = _photoPath != null && _commentController.text.trim().isNotEmpty;
+
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      title: const Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: Color(0xFFE11D48)),
+          const SizedBox(width: 10),
+          const Text('İlave Uygunsuzluk Ekle', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        ],
+      ),
+      content: SizedBox(
+        width: MediaQuery.of(context).size.width * 0.9,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.question.questionText, 
+                style: TextStyle(
+                  fontSize: 13, 
+                  color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.8), 
+                  fontStyle: FontStyle.italic
+                )
+              ),
+              const SizedBox(height: 20),
+              const Text('Açıklama *', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _commentController,
+                maxLines: 3,
+                style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
+                decoration: InputDecoration(
+                  hintText: 'Lütfen açıklama giriniz...',
+                  hintStyle: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.65)),
+                  filled: true,
+                  fillColor: Theme.of(context).scaffoldBackgroundColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 20),
+              const Text('Kanıt Fotoğrafı *', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pickImage(ImageSource.camera),
+                      icon: const Icon(Icons.camera_alt_rounded, size: 18),
+                      label: const Text('Kamera', style: TextStyle(fontSize: 12)),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Theme.of(context).primaryColor),
+                        foregroundColor: Theme.of(context).primaryColor,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pickImage(ImageSource.gallery),
+                      icon: const Icon(Icons.photo_library_rounded, size: 18),
+                      label: const Text('Galeri', style: TextStyle(fontSize: 12)),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Theme.of(context).primaryColor.withValues(alpha: 0.6)),
+                        foregroundColor: Theme.of(context).primaryColor,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (_photoPath != null) ...[
+                const SizedBox(height: 12),
+                Center(
+                  child: SizedBox(
+                    width: 120,
+                    height: 120,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(child: PositionBox(path: _photoPath!)),
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: InkWell(
+                            onTap: () => setState(() => _photoPath = null),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                              child: const Icon(Icons.close, size: 16, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
+        ElevatedButton(
+          onPressed: canSave
+              ? () {
+                  Navigator.pop(context, {
+                    'comment': _commentController.text.trim(),
+                    'photoPath': _photoPath,
+                  });
+                }
+              : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFE11D48), 
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: Colors.grey[300],
+            disabledForegroundColor: Colors.grey[800],
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          child: Text(
+            'Kaydet', 
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: canSave ? Colors.white : Colors.grey[700],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

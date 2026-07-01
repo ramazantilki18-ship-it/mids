@@ -16,6 +16,12 @@ import '../screens/my_audits_screen.dart';
 import '../screens/change_password_screen.dart';
 import '../screens/feedback_management_screen.dart';
 import '../screens/report_screen.dart';
+import '../screens/personal_roster_screen.dart';
+import '../screens/admin_panel_screen.dart';
+import '../screens/user_management_screen.dart';
+import '../screens/question_management_screen.dart';
+import '../screens/line_management_screen.dart';
+import '../screens/task_planning_screen.dart';
 import '../widgets/bottom_nav_shell.dart';
 
 class AppRouter {
@@ -45,6 +51,10 @@ class AppRouter {
           GoRoute(
             path: '/nonconformities',
             builder: (context, state) => const NonconformityListScreen(),
+          ),
+          GoRoute(
+            path: '/personal-roster',
+            builder: (context, state) => const PersonalRosterScreen(),
           ),
           GoRoute(
             path: '/reports',
@@ -96,6 +106,26 @@ class AppRouter {
       GoRoute(
         path: '/feedback-management',
         builder: (context, state) => const FeedbackManagementScreen(),
+      ),
+      GoRoute(
+        path: '/admin-panel',
+        builder: (context, state) => const AdminPanelScreen(),
+      ),
+      GoRoute(
+        path: '/user-management',
+        builder: (context, state) => const UserManagementScreen(),
+      ),
+      GoRoute(
+        path: '/question-management',
+        builder: (context, state) => const QuestionManagementScreen(),
+      ),
+      GoRoute(
+        path: '/line-management',
+        builder: (context, state) => const LineManagementScreen(),
+      ),
+      GoRoute(
+        path: '/task-planning',
+        builder: (context, state) => const TaskPlanningScreen(),
       ),
     ],
   );

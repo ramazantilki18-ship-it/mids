@@ -11,6 +11,7 @@ import '../providers/auth_provider.dart';
 import '../models/user_model.dart';
 import '../theme/app_colors.dart';
 import '../services/storage_service.dart';
+import '../providers/system_provider.dart';
 
 class NonconformityDetailScreen extends StatelessWidget {
   final String id;
@@ -233,7 +234,7 @@ class NonconformityDetailScreen extends StatelessWidget {
       child: Column(
         children: [
           _buildDetailRow(
-              Icons.person_pin_rounded, 'Denetçi', nc.auditorName, context),
+              Icons.person_pin_rounded, 'Denetçi', context.read<SystemProvider>().resolveDisplayName(auditorName: nc.auditorName), context),
           const Divider(height: 24, thickness: 0.5),
           _buildDetailRow(
               Icons.category_rounded, 'Kategori', nc.category, context),
@@ -332,8 +333,8 @@ class NonconformityDetailScreen extends StatelessWidget {
           const Divider(height: 24, thickness: 0.5),
           _buildDetailRow(Icons.person_rounded, 'Kapatan Kişi',
               (nc.closedByName != null && nc.closedByName!.isNotEmpty)
-                  ? nc.closedByName!
-                  : nc.auditorName.isNotEmpty ? nc.auditorName : '-',
+                  ? context.read<SystemProvider>().resolveDisplayName(auditorName: nc.closedByName!)
+                  : nc.auditorName.isNotEmpty ? context.read<SystemProvider>().resolveDisplayName(auditorName: nc.auditorName) : '-',
               context,
               valueColor: Theme.of(context).brightness == Brightness.dark
                   ? const Color(0xFF60A5FA)
@@ -341,7 +342,7 @@ class NonconformityDetailScreen extends StatelessWidget {
           const Divider(height: 24, thickness: 0.5),
           _buildDetailRow(Icons.verified_user_rounded, 'Onaylayan Kişi',
               (nc.approvedByName != null && nc.approvedByName!.isNotEmpty && nc.approvedByName != '-')
-                  ? nc.approvedByName!
+                  ? context.read<SystemProvider>().resolveDisplayName(auditorName: nc.approvedByName!)
                   : (nc.status == NonconformityStatus.completed ? 'Ramazan Tilki' : '-'),
               context,
               valueColor: Theme.of(context).brightness == Brightness.dark

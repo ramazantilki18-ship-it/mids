@@ -87,15 +87,16 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   List<AuditModel> _getFilteredAudits(
-      List<AuditModel> audits, AuditTypeModel? selectedAuditType) {
+      List<AuditModel> audits, AuditTypeModel? selectedAuditType, {Map<String, String> auditorNameMap = const {}}) {
     if (selectedAuditType == null) return [];
     return audits.where((a) {
       bool lineMatch =
           _selectedLines.contains('Tümü') || _selectedLines.contains(a.line);
       bool stationMatch =
           _selectedStation == 'Tümü' || a.station == _selectedStation;
+      final resolvedName = auditorNameMap[a.auditorName] ?? a.auditorName;
       bool userMatch =
-          _selectedUser == 'Tümü' || a.auditorName == _selectedUser;
+          _selectedUser == 'Tümü' || resolvedName == _selectedUser;
       bool yearMatch =
           _selectedYear == 'Tümü' || a.date.year.toString() == _selectedYear;
       bool monthMatch =
@@ -132,7 +133,19 @@ class _ReportScreenState extends State<ReportScreen> {
             .any((type) => type.id == _selectedAuditTypeId)
         ? activeAuditTypes.firstWhere((type) => type.id == _selectedAuditTypeId)
         : (activeAuditTypes.isNotEmpty ? activeAuditTypes.first : null);
-    final filteredAudits = _getFilteredAudits(allAudits, selectedAuditType);
+
+    // auditorName -> resolvedDisplayName map oluştur
+    final auditorNameMap = <String, String>{};
+    for (var a in allAudits) {
+      if (!auditorNameMap.containsKey(a.auditorName)) {
+        auditorNameMap[a.auditorName] = system.resolveDisplayName(
+          auditorId: a.auditorId,
+          auditorName: a.auditorName,
+        );
+      }
+    }
+
+    final filteredAudits = _getFilteredAudits(allAudits, selectedAuditType, auditorNameMap: auditorNameMap);
 
     final auditById = {for (final audit in allAudits) audit.id: audit};
     final allNC = ncProvider.all.where((nc) {
@@ -211,7 +224,7 @@ class _ReportScreenState extends State<ReportScreen> {
     ];
     final List<String> availableUsers = [
       'Tümü',
-      ...allAudits.map((a) => a.auditorName).toSet()
+      ...allAudits.map((a) => auditorNameMap[a.auditorName] ?? a.auditorName).toSet()
     ];
     final List<String> availableYears = [
       'Tümü',
@@ -864,7 +877,7 @@ class _ReportScreenState extends State<ReportScreen> {
         }
       }
 
-      final displayName = foundUser?.username ?? e.key;
+      final displayName = foundUser?.name ?? e.key;
       final displayTitle = foundUser?.title ?? 'Saha Denetçisi';
       final displayLines = foundUser?.authorizedLines.join(', ') ?? '';
 

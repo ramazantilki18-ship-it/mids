@@ -168,7 +168,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(user.title, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFFB923C) : AppColors.accentOrange, fontWeight: FontWeight.w600, fontSize: 12)),
-                  Text('${user.username} | Sistem Yetkisi: ${user.roleDisplayName}', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface)),
+                  Text('${user.name} | Sistem Yetkisi: ${user.roleDisplayName}', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface)),
                   Text('Sorumlu Hatlar: ${user.authorizedLines.isEmpty ? 'Tümü' : user.authorizedLines.join(', ')}', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8))),
                 ],
               ),

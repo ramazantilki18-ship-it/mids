@@ -201,6 +201,54 @@ class _StartAuditScreenState extends State<StartAuditScreen> {
                         }
 
                         final auditProvider = context.read<AuditProvider>();
+                        
+                        // Mükerrer denetim uyarısı (Son 10 dakika)
+                        final recentDuplicate = auditProvider.auditHistory.where((a) =>
+                            a.station == station &&
+                            a.auditTypeId == auditTypeId &&
+                            DateTime.now().difference(a.date).inMinutes.abs() < 10
+                        ).firstOrNull;
+
+                        if (recentDuplicate != null) {
+                          final formattedTime = DateFormat('HH:mm').format(recentDuplicate.date);
+                          final auditorDisplayName = context.read<SystemProvider>().resolveDisplayName(
+                            auditorId: recentDuplicate.auditorId,
+                            auditorName: recentDuplicate.auditorName,
+                          );
+                          if (context.mounted) {
+                            final confirmDuplicate = await showDialog<bool>(
+                              context: context,
+                              builder: (dialogContext) => AlertDialog(
+                                title: const Row(
+                                  children: [
+                                    Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                                    SizedBox(width: 8),
+                                    Text('Mükerrer Denetim Uyarısı', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                                content: Text(
+                                  'Bu istasyonda son 10 dakika içinde ($formattedTime\'de) $auditorDisplayName tarafından aynı tipte bir denetim zaten gerçekleştirilmiştir.\n\nYine de yeni bir denetim başlatmak istiyor musunuz?'
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(dialogContext, false),
+                                    child: const Text('VAZGEÇ'),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () => Navigator.pop(dialogContext, true),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orange,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    child: const Text('DEVAM ET'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirmDuplicate != true) return;
+                          }
+                        }
+
                         if (auditProvider.currentAudit != null &&
                             !auditProvider.currentAudit!.isCompleted) {
                           final confirm = await showDialog<bool>(
