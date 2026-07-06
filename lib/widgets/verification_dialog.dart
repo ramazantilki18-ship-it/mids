@@ -52,7 +52,7 @@ class _VerificationFlowDialogState extends State<VerificationFlowDialog> {
 
   @override
   void dispose() {
-    if (_mode == VerificationMode.nfc) {
+    if (_mode == VerificationMode.nfc && !Platform.isIOS) {
       NfcManager.instance.stopSession().catchError((_) {});
     }
     _manualController.dispose();
@@ -318,7 +318,7 @@ class _VerificationFlowDialogState extends State<VerificationFlowDialog> {
   void _switchMode(VerificationMode newMode) {
     if (_mode == newMode) return;
 
-    if (_mode == VerificationMode.nfc) {
+    if (_mode == VerificationMode.nfc && !Platform.isIOS) {
       NfcManager.instance.stopSession().catchError((_) {});
     }
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class MetroBrandHeader extends StatelessWidget {
   final double logoWidth;
@@ -46,14 +48,23 @@ class MetroBrandHeader extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: logoWidth,
-            child: SvgPicture.asset(
-              'assets/brand/metro_istanbul_logo_color.svg',
-              fit: BoxFit.contain,
-              colorMapper: const _MetroLogoColorMapper(),
+          if (!kIsWeb && Platform.isIOS)
+            SizedBox(
+              width: logoWidth * 0.45, // Kare formatındaki logo için dikeyde taşmaması adına ebat iyice küçültüldü
+              child: Image.asset(
+                'assets/brand/ios_m_logo.png',
+                fit: BoxFit.contain,
+              ),
+            )
+          else
+            SizedBox(
+              width: logoWidth,
+              child: SvgPicture.asset(
+                'assets/brand/metro_istanbul_logo_color.svg',
+                fit: BoxFit.contain,
+                colorMapper: const _MetroLogoColorMapper(),
+              ),
             ),
-          ),
           SizedBox(height: compact ? 8 : 12),
           SizedBox(
             width: titleWidth + titleExtraWidth,

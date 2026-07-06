@@ -55,7 +55,7 @@ class MyApp extends StatelessWidget {
         builder: (context, system, child) {
           return MaterialApp.router(
             debugShowCheckedModeBanner: false,
-            title: 'Metro Istanbul Denetim Uygulamasi',
+            title: (!kIsWeb && Platform.isIOS) ? 'Mids' : 'Metro Istanbul Denetim Uygulamasi',
             theme: system.isDarkMode ? AppTheme.darkTheme : AppTheme.lightTheme,
             routerConfig: AppRouter.router,
           );
