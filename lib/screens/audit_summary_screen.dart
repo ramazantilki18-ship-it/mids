@@ -180,6 +180,8 @@ class AuditSummaryScreen extends StatelessWidget {
         child: Column(
           children: [
             _buildOverallScoreCard(context),
+            const SizedBox(height: 16),
+            _buildAuditDurationCard(context),
             const SizedBox(height: 24),
 
             // KATEGORİ BAZLI PERFORMANS
@@ -358,6 +360,28 @@ class AuditSummaryScreen extends StatelessWidget {
                               fontWeight: FontWeight.bold),
                         ),
                       ),
+                       const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.25),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          audit!.auditType.toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -395,6 +419,120 @@ class AuditSummaryScreen extends StatelessWidget {
                   ],
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAuditDurationCard(BuildContext context) {
+    if (audit == null) return const SizedBox.shrink();
+
+    final startedStr = audit!.startedAt != null
+        ? DateFormat('HH:mm').format(audit!.startedAt!)
+        : '-';
+    final completedStr = audit!.completedAt != null
+        ? DateFormat('HH:mm').format(audit!.completedAt!)
+        : '-';
+
+    String durationStr = '-';
+    if (audit!.startedAt != null && audit!.completedAt != null) {
+      final diff = audit!.completedAt!.difference(audit!.startedAt!);
+      durationStr = '${diff.inMinutes} Dk';
+    }
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withOpacity(0.08),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildDurationItem(
+            context,
+            icon: Icons.play_circle_outline_rounded,
+            label: 'BAŞLANGIÇ',
+            value: startedStr,
+            iconColor: isDark ? const Color(0xFF60A5FA) : AppColors.primary,
+          ),
+          Container(
+            width: 1,
+            height: 32,
+            color: Theme.of(context).dividerColor.withOpacity(0.1),
+          ),
+          _buildDurationItem(
+            context,
+            icon: Icons.stop_circle_outlined,
+            label: 'BİTİŞ',
+            value: completedStr,
+            iconColor: const Color(0xFFEF4444),
+          ),
+          Container(
+            width: 1,
+            height: 32,
+            color: Theme.of(context).dividerColor.withOpacity(0.1),
+          ),
+          _buildDurationItem(
+            context,
+            icon: Icons.timer_outlined,
+            label: 'TOPLAM SÜRE',
+            value: durationStr,
+            iconColor: const Color(0xFF10B981),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDurationItem(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color iconColor,
+  }) {
+    return Expanded(
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: iconColor),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],

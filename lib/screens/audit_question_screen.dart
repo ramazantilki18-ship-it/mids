@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -14,8 +16,31 @@ import '../services/audit_scoring_service.dart';
 import '../services/storage_service.dart';
 import '../theme/app_colors.dart';
 
-class AuditQuestionScreen extends StatelessWidget {
+class AuditQuestionScreen extends StatefulWidget {
   const AuditQuestionScreen({super.key});
+
+  @override
+  State<AuditQuestionScreen> createState() => _AuditQuestionScreenState();
+}
+
+class _AuditQuestionScreenState extends State<AuditQuestionScreen> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 15), (timer) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,13 +67,15 @@ class AuditQuestionScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Denetim Formu', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        title: const Text('DENETİM FORMU', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
+            _buildActiveDurationCard(context, audit),
+            const SizedBox(height: 12),
             ..._buildQuestionSections(questions).expand((section) {
             final categoryQuestions = section.questions;
             return [
@@ -71,6 +98,135 @@ class AuditQuestionScreen extends StatelessWidget {
         ),
       ),
       bottomNavigationBar: _buildNavigationBars(audit, canComplete, context),
+    );
+  }
+
+  Widget _buildActiveDurationCard(BuildContext context, AuditProvider audit) {
+    final currentAudit = audit.currentAudit;
+    if (currentAudit == null) return const SizedBox.shrink();
+
+    final startedAt = currentAudit.startedAt;
+    final startedStr = startedAt != null
+        ? DateFormat('HH:mm').format(startedAt)
+        : '-';
+
+    String elapsedStr = '0 Dk';
+    if (startedAt != null) {
+      final elapsed = DateTime.now().difference(startedAt);
+      elapsedStr = '${elapsed.inMinutes} Dk';
+    }
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = isDark ? const Color(0xFF60A5FA) : AppColors.primary;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withOpacity(0.08),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.015),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          )
+        ],
+      ),
+      child: Column(
+        children: [
+          // Denetim Tipi Row
+          Row(
+            children: [
+              Icon(Icons.assignment_outlined, color: primaryColor, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  currentAudit.auditType.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    color: Theme.of(context).colorScheme.onSurface,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Divider(
+              color: Theme.of(context).dividerColor.withOpacity(0.08),
+              height: 1,
+            ),
+          ),
+          // Süre Bilgileri Row
+          Row(
+            children: [
+              Icon(Icons.play_circle_outline_rounded, color: primaryColor, size: 20),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'BAŞLANGIÇ SAATİ',
+                    style: TextStyle(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    startedStr,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Container(
+                width: 1,
+                height: 24,
+                color: Theme.of(context).dividerColor.withOpacity(0.1),
+              ),
+              const Spacer(),
+              Icon(Icons.timer_outlined, color: const Color(0xFF10B981), size: 20),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'GEÇEN SÜRE',
+                    style: TextStyle(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    elapsedStr,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

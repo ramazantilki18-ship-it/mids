@@ -130,6 +130,17 @@ class _PersonalRosterScreenState extends State<PersonalRosterScreen> with Single
     return DateTime(_selectedDate.year, _selectedDate.month, 1).weekday;
   }
 
+  bool _isDayEditable(int dayNum) {
+    final now = DateTime.now();
+    if (_selectedDate.year < now.year) return false;
+    if (_selectedDate.year > now.year) return true;
+    
+    if (_selectedDate.month < now.month) return false;
+    if (_selectedDate.month > now.month) return true;
+    
+    return dayNum >= now.day;
+  }
+
   // Shift group color themes
   Color _getShiftColor(String code, String group) {
     if (code == 'İ') return const Color(0xFF34C759); // Green
@@ -617,71 +628,88 @@ class _PersonalRosterScreenState extends State<PersonalRosterScreen> with Single
                   ? _getShiftColor(selectedShift, shiftGroup) 
                   : Colors.grey;
 
+              final isEditable = _isDayEditable(dayNum);
+
               return InkWell(
-                onTap: () => _openShiftSelectionBottomSheet(dayNum),
+                onTap: isEditable 
+                    ? () => _openShiftSelectionBottomSheet(dayNum)
+                    : () {
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Geçmiş günlere ait puantaj bilgisi değiştirilemez.'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
                   decoration: BoxDecoration(
                     color: isShiftSelected 
-                        ? themeColor.withOpacity(0.08) 
+                        ? themeColor.withOpacity(isEditable ? 0.08 : 0.03) 
                         : isDark ? Colors.white.withOpacity(0.02) : Colors.black.withOpacity(0.015),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isShiftSelected ? themeColor : (isDark ? Colors.white12 : Colors.black.withOpacity(0.06)),
+                      color: isShiftSelected 
+                          ? themeColor.withOpacity(isEditable ? 1.0 : 0.3) 
+                          : (isDark ? Colors.white10 : Colors.black.withOpacity(0.06)),
                       width: isShiftSelected ? 1.5 : 1.0,
                     ),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      // Day Number
-                      Text(
-                        '$dayNum',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14.5,
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                      // Shift code circular badge
-                      if (isShiftSelected)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: themeColor,
-                            borderRadius: BorderRadius.circular(6),
+                  child: Opacity(
+                    opacity: isEditable ? 1.0 : 0.45,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        // Day Number
+                        Text(
+                          '$dayNum',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14.5,
+                            color: isDark ? Colors.white : Colors.black87,
                           ),
-                          child: Text(
-                            selectedShift,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                              fontFamily: 'monospace',
+                        ),
+                        // Shift code circular badge
+                        if (isShiftSelected)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: themeColor,
+                              borderRadius: BorderRadius.circular(6),
                             ),
+                            child: Text(
+                              selectedShift,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          )
+                        else
+                          Icon(
+                            Icons.add_rounded,
+                            size: 15,
+                            color: isDark ? Colors.white38 : Colors.black38,
                           ),
-                        )
-                      else
-                        Icon(
-                          Icons.add_rounded,
-                          size: 15,
-                          color: isDark ? Colors.white38 : Colors.black38,
-                        ),
-                      // Indicator of Excuse
-                      if (excuse.isNotEmpty)
-                        Container(
-                          width: 4,
-                          height: 4,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFFF9500),
-                            shape: BoxShape.circle,
-                          ),
-                        )
-                      else
-                        const SizedBox(height: 4),
-                    ],
+                        // Indicator of Excuse
+                        if (excuse.isNotEmpty)
+                          Container(
+                            width: 4,
+                            height: 4,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFFF9500),
+                              shape: BoxShape.circle,
+                            ),
+                          )
+                        else
+                          const SizedBox(height: 4),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -733,7 +761,6 @@ class _PersonalRosterScreenState extends State<PersonalRosterScreen> with Single
                   itemBuilder: (context, index) {
                     final entry = excuseDays[index];
                     final dayNum = int.parse(entry.key);
-                    final dayKey = entry.key;
                     final currentDayDate = DateTime(_selectedDate.year, _selectedDate.month, dayNum);
                     final dayName = DateFormat('EEEE', 'tr_TR').format(currentDayDate);
 

@@ -9,6 +9,7 @@ import '../models/user_model.dart';
 import '../providers/audit_provider.dart';
 import '../utils/audit_type_matcher.dart';
 import '../widgets/audit_type_selector.dart';
+import 'package:intl/intl.dart';
 
 class MyAuditsScreen extends StatefulWidget {
   const MyAuditsScreen({super.key});
@@ -750,6 +751,26 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: (Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF)),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: (Theme.of(context).brightness == Brightness.dark ? Colors.white10 : const Color(0xFFBFDBFE)),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          audit.auditType.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            color: (Theme.of(context).brightness == Brightness.dark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB)),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -806,7 +827,7 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${audit.date.hour.toString().padLeft(2, '0')}:${audit.date.minute.toString().padLeft(2, '0')}',
+                        _buildTimeRange(audit),
                         style: TextStyle(
                           fontSize: 10,
                           color: Theme.of(context)
@@ -816,6 +837,17 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+                      if (audit.startedAt != null && audit.completedAt != null) ...[
+                        const SizedBox(height: 1),
+                        Text(
+                          '${audit.completedAt!.difference(audit.startedAt!).inMinutes} dk',
+                          style: const TextStyle(
+                            fontSize: 9.5,
+                            color: Color(0xFF10B981),
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
                       if (ncCount > 0) ...[
                         const SizedBox(height: 4),
                         Row(
@@ -853,6 +885,19 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
         ),
       ),
     );
+  }
+
+  String _buildTimeRange(AuditModel audit) {
+    if (audit.startedAt != null && audit.completedAt != null) {
+      final startedStr = DateFormat('HH:mm').format(audit.startedAt!);
+      final completedStr = DateFormat('HH:mm').format(audit.completedAt!);
+      return '$startedStr - $completedStr';
+    }
+    final timeStr = '${audit.date.hour.toString().padLeft(2, '0')}:${audit.date.minute.toString().padLeft(2, '0')}';
+    if (audit.startedAt != null) {
+      return '${DateFormat('HH:mm').format(audit.startedAt!)} - -';
+    }
+    return timeStr;
   }
 
   // HAT LOGOSU OLUŞTUR (YUVARLAK)

@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import 'audit_type_model.dart';
 
 class AnswerPhoto {
@@ -296,6 +297,14 @@ class AuditModel {
         'completedAt': completedAt?.toIso8601String(),
       };
 
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is Timestamp) return value.toDate();
+    if (value is String) return DateTime.tryParse(value);
+    return null;
+  }
+
   factory AuditModel.fromMap(Map<String, dynamic> map, [String? docId]) {
     final answers = List<AuditAnswer>.from(
       (map['answers'] ?? []).map((x) => AuditAnswer.fromMap(Map<String, dynamic>.from(x))),
@@ -305,7 +314,7 @@ class AuditModel {
 
     return AuditModel(
       id: docId ?? map['id'] ?? '',
-      date: DateTime.tryParse(map['date']?.toString() ?? '') ?? DateTime.now(),
+      date: _parseDateTime(map['date']) ?? DateTime.now(),
       line: map['line'] ?? '',
       station: map['station'] ?? '',
       auditorId: map['auditorId'] ?? '',
@@ -315,8 +324,8 @@ class AuditModel {
       isCompleted: map['isCompleted'] ?? false,
       score: storedScore,
       answers: answers,
-      startedAt: map['startedAt'] != null ? DateTime.tryParse(map['startedAt'].toString()) : null,
-      completedAt: map['completedAt'] != null ? DateTime.tryParse(map['completedAt'].toString()) : null,
+      startedAt: _parseDateTime(map['startedAt']),
+      completedAt: _parseDateTime(map['completedAt']),
     );
   }
 }

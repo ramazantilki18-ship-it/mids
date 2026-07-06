@@ -50,6 +50,7 @@ class UserModel {
   final UserRole role;
   final List<String> authorizedLines;
   final List<String> authorizedStations;
+  final List<String> authorizedAuditTypes;
   final String? password;
   final String? jobTitle;
 
@@ -60,6 +61,7 @@ class UserModel {
     required this.role,
     this.authorizedLines = const [],
     this.authorizedStations = const [],
+    this.authorizedAuditTypes = const [],
     this.password,
     this.jobTitle,
   });
@@ -91,6 +93,11 @@ class UserModel {
     if (lines.isEmpty) return false;
 
     return lines.contains(normalizedLine);
+  }
+
+  bool canAccessAuditType(String auditTypeId) {
+    if (authorizedAuditTypes.isEmpty) return true; // Default to all if none specified
+    return authorizedAuditTypes.contains(auditTypeId);
   }
 
   bool matchesIdentity({String? auditorId, String? auditorName}) {
@@ -135,6 +142,7 @@ class UserModel {
       'role': role.nameInFirebase,
       'authorizedLines': authorizedLines,
       'authorizedStations': authorizedStations,
+      'authorizedAuditTypes': authorizedAuditTypes,
       'password': password,
       'title': jobTitle,
     };
@@ -213,6 +221,9 @@ class UserModel {
         json['authorizedStations'] ??
             json['stations'] ??
             json['authorized_stations'],
+      ),
+      authorizedAuditTypes: _parseStringList(
+        json['authorizedAuditTypes'] ?? json['authorized_audit_types'] ?? json['auditTypes'],
       ),
       password: json['password'] as String?,
       jobTitle: jobTitle,

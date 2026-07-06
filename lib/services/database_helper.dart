@@ -52,7 +52,7 @@ class DatabaseHelper {
 
       return await openDatabase(
         path,
-        version: 7,
+        version: 8,
         onCreate: _createDB,
         onUpgrade: _upgradeDB,
       );
@@ -74,7 +74,9 @@ class DatabaseHelper {
         auditType TEXT,
         score REAL,
         isCompleted INTEGER DEFAULT 0,
-        answers TEXT
+        answers TEXT,
+        startedAt TEXT,
+        completedAt TEXT
       )
     ''');
 
@@ -150,6 +152,19 @@ class DatabaseHelper {
         print('auditType alani eklenirken hata (muhtemelen zaten var): $e');
       }
     }
+
+    if (oldVersion < 8) {
+      try {
+        await db.execute('ALTER TABLE audits ADD COLUMN startedAt TEXT');
+      } catch (e) {
+        print('startedAt alani eklenirken hata (muhtemelen zaten var): $e');
+      }
+      try {
+        await db.execute('ALTER TABLE audits ADD COLUMN completedAt TEXT');
+      } catch (e) {
+        print('completedAt alani eklenirken hata (muhtemelen zaten var): $e');
+      }
+    }
   }
 
   // AUDITS
@@ -166,6 +181,8 @@ class DatabaseHelper {
       'score': audit.score,
       'isCompleted': audit.isCompleted ? 1 : 0,
       'answers': jsonEncode(audit.answers.map((e) => e.toJson()).toList()),
+      'startedAt': audit.startedAt?.toIso8601String(),
+      'completedAt': audit.completedAt?.toIso8601String(),
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
@@ -193,6 +210,8 @@ class DatabaseHelper {
             final map = Map<String, dynamic>.from(e as Map);
             return AuditAnswer.fromJson(map);
           }).toList(),
+          startedAt: json['startedAt'] != null ? DateTime.tryParse(json['startedAt'] as String) : null,
+          completedAt: json['completedAt'] != null ? DateTime.tryParse(json['completedAt'] as String) : null,
         ));
       } catch (e, stack) {
         lastParseError = 'ID: ${json['id']} -> $e\n$stack';

@@ -335,9 +335,18 @@ class _HomeScreenState extends State<HomeScreen> {
     if (targetCount <= 0) return;
 
     // Calculate completed count for yesterday
+    // Wait for audit history to load from Firestore (race condition fix)
     final audit = context.read<AuditProvider>();
-    final completedCount = audit.auditHistory.where((a) {
-      return a.auditorId == user.id &&
+    if (!audit.isHistoryLoaded) {
+      for (int i = 0; i < 30; i++) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (!mounted) return;
+        if (context.read<AuditProvider>().isHistoryLoaded) break;
+      }
+    }
+    final loadedAudit = context.read<AuditProvider>();
+    final completedCount = loadedAudit.auditHistory.where((a) {
+      return user.matchesIdentity(auditorId: a.auditorId, auditorName: a.auditorName) &&
           a.date.year == yesterday.year &&
           a.date.month == yesterday.month &&
           a.date.day == yesterday.day &&
@@ -1335,6 +1344,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final activeAuditTypes = system.auditTypes
         .where((type) => type.isActive && !type.isDeleted)
+        .where((type) => user.canAccessAuditType(type.id))
         .toList()
       ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
     if (_selectedAuditTypeId == null && activeAuditTypes.isNotEmpty) {
@@ -1493,6 +1503,114 @@ class _HomeScreenState extends State<HomeScreen> {
                               final line = selectedLineValue;
                               final station = selectedStationValue;
                               final auditTypeId = selectedAuditTypeValue;
+
+                              // Check if user has filled their roster (puantaj) for this month
+                              final now = DateTime.now();
+                              
+                              bool hasFilledRoster = false;
+
+                              // Roster requirement only applies to users who can see/access the roster tab
+                              final title = (user.jobTitle ?? '').trim().toLowerCase();
+                              String clean(String s) {
+                                return s
+                                    .replaceAll('ı', 'i')
+                                    .replaceAll('ğ', 'g')
+                                    .replaceAll('ü', 'u')
+                                    .replaceAll('ş', 's')
+                                    .replaceAll('ö', 'o')
+                                    .replaceAll('ç', 'c')
+                                    .replaceAll('â', 'a');
+                              }
+                              final cleanTitle = clean(title);
+                              final isSupervisorOrManager = cleanTitle.contains('hat vardiya amiri') || cleanTitle.contains('istasyon sorumlusu');
+                              final requiredToFill = !isSupervisorOrManager && (
+                                  user.role == UserRole.fieldAuditor || 
+                                  user.role == UserRole.fieldAuditorActionOwner
+                              );
+
+                              if (!requiredToFill) {
+                                hasFilledRoster = true;
+                                debugPrint('User is not required to fill roster. Bypassing check.');
+                              } else {
+                                final docIdForCheck = '${user.id}_${now.year}_${now.month}';
+                                debugPrint('Checking Roster from Home: docId = $docIdForCheck');
+                                try {
+                                  final rosterDoc = await FirebaseFirestore.instance
+                                      .collection('user_rosters')
+                                      .doc(docIdForCheck)
+                                      .get();
+                                  
+                                  debugPrint('Roster doc exists: ${rosterDoc.exists}');
+                                  if (rosterDoc.exists && rosterDoc.data() != null) {
+                                    final data = rosterDoc.data()!;
+                                    debugPrint('Roster doc data: $data');
+                                    final daysData = data['days'] as Map?;
+                                    if (daysData != null) {
+                                      final todayDay = now.day;
+                                      final dKey = todayDay.toString();
+                                      final dayData = daysData[dKey];
+                                      final shift = dayData is Map ? (dayData['shift']?.toString() ?? '') : '';
+                                      if (shift.isNotEmpty) {
+                                        hasFilledRoster = true;
+                                      }
+                                      debugPrint('Roster check result for today (day $todayDay): shift = $shift, hasFilledRoster = $hasFilledRoster');
+                                    }
+                                  } else {
+                                    debugPrint('Roster doc does not exist or has no data.');
+                                  }
+                                } catch (e) {
+                                  debugPrint('Error verifying roster: $e');
+                                }
+                              }
+
+                              if (!hasFilledRoster) {
+                                if (context.mounted) {
+                                  await showDialog(
+                                    context: context,
+                                    builder: (dialogContext) => AlertDialog(
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                      title: const Row(
+                                        children: [
+                                          Icon(Icons.error_outline_rounded, color: Colors.red, size: 24),
+                                          SizedBox(width: 8),
+                                          Text('Puantaj Uyarısı', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                        ],
+                                      ),
+                                      content: const Text(
+                                        'Bu aya ait puantajınızı doldurmadan denetim başlatamazsınız.\n\nLütfen Puantaj sekmesine giderek bu ayın tüm günleri için vardiya seçiminizi tamamlayın.'
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(dialogContext),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface
+                                                .withValues(alpha: 0.6),
+                                          ),
+                                          child: const Text('VAZGEÇ'),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () {
+                                            Navigator.pop(dialogContext);
+                                            context.push('/personal-roster');
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: AppColors.primary,
+                                            foregroundColor: Colors.white,
+                                            elevation: 0,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                          ),
+                                          child: const Text('PUANTAJA GİT', style: TextStyle(fontWeight: FontWeight.bold)),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+                                return;
+                              }
 
                               final selectedAuditType = activeAuditTypes.firstWhere(
                                 (t) => t.id == auditTypeId,
@@ -1801,7 +1919,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Calculate completed count for today
     final now = DateTime.now();
     final completedCount = audit.auditHistory.where((a) {
-      return a.auditorId == user.id &&
+      return user.matchesIdentity(auditorId: a.auditorId, auditorName: a.auditorName) &&
           a.date.year == now.year &&
           a.date.month == now.month &&
           a.date.day == now.day &&

@@ -47,13 +47,19 @@ class PdfService {
     try {
       final pdf = pw.Document();
 
+      final startedStr = audit.startedAt != null ? DateFormat('HH:mm').format(audit.startedAt!) : '-';
+      final completedStr = audit.completedAt != null ? DateFormat('HH:mm').format(audit.completedAt!) : '-';
+      String durationStr = '-';
+      if (audit.startedAt != null && audit.completedAt != null) {
+        final diff = audit.completedAt!.difference(audit.startedAt!);
+        durationStr = '${diff.inMinutes} Dk';
+      }
+
       // Load local Turkish-supporting font for INSTANT generation (no network requests)
       final fontData = await rootBundle.load('assets/fonts/NotoSans-Regular.ttf');
       final ttf = pw.Font.ttf(fontData);
       final ttfBold = ttf; // Using regular for bold as well to save size/time
-      final brandBadge = pw.MemoryImage(
-        (await rootBundle.load('assets/images/brand_badge.png')).buffer.asUint8List(),
-      );
+
 
       Future<pw.Widget?> downloadAndBuildImageWidget(String path) async {
         if (path.isEmpty) return null;
@@ -173,20 +179,47 @@ class PdfService {
                       pw.Container(
                         width: 56,
                         height: 56,
-                        decoration: const pw.BoxDecoration(
+                        decoration: pw.BoxDecoration(
+                          color: _getLinePdfColor(audit.line),
                           shape: pw.BoxShape.circle,
                         ),
                         alignment: pw.Alignment.center,
-                        child: pw.Image(brandBadge, fit: pw.BoxFit.contain),
+                        child: pw.Text(
+                          audit.line.toUpperCase(),
+                          style: pw.TextStyle(
+                            font: ttf,
+                            fontSize: 18,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.white,
+                          ),
+                        ),
                       ),
                       pw.SizedBox(width: 16),
                       pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
                           pw.Text(toTurkishUpper(audit.station), style: pw.TextStyle(font: ttf, fontSize: 20, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+                          pw.SizedBox(height: 4),
+                          pw.Container(
+                            padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: pw.BoxDecoration(
+                              color: PdfColors.blueGrey900,
+                              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                            ),
+                            child: pw.Text(
+                              audit.auditType.toUpperCase(),
+                              style: pw.TextStyle(
+                                font: ttf,
+                                fontSize: 9,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.blue300,
+                              ),
+                            ),
+                          ),
                           pw.SizedBox(height: 6),
                           pw.Text('Denetim ID: ${audit.id.replaceAll('AUD', 'DNT')}', style: pw.TextStyle(font: ttf, fontSize: 10, color: PdfColors.blueGrey200)),
-                          pw.Text('Tarih: ${DateFormat('dd.MM.yyyy HH:mm').format(audit.date)}', style: pw.TextStyle(font: ttf, fontSize: 10, color: PdfColors.blueGrey200)),
+                          pw.Text('Tarih: ${DateFormat('dd.MM.yyyy').format(audit.date)}', style: pw.TextStyle(font: ttf, fontSize: 10, color: PdfColors.blueGrey200)),
+                          pw.Text('Süre: $startedStr - $completedStr ($durationStr)', style: pw.TextStyle(font: ttf, fontSize: 10, color: PdfColors.blueGrey200)),
                           pw.Text('Denetçi: ${resolvedAuditorName ?? audit.auditorName}', style: pw.TextStyle(font: ttf, fontSize: 10, color: PdfColors.blueGrey200)),
                         ],
                       ),
@@ -204,7 +237,7 @@ class PdfService {
                           crossAxisAlignment: pw.CrossAxisAlignment.end,
                           children: [
                             pw.Text('BAŞARI SKORU', style: pw.TextStyle(font: ttf, fontSize: 8, color: PdfColors.white, fontWeight: pw.FontWeight.bold)),
-                            pw.Text('%${audit.score.toStringAsFixed(1)}', style: pw.TextStyle(font: ttf, fontSize: 24, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+                             pw.Text('%${audit.score % 1 == 0 ? audit.score.toInt().toString() : audit.score.toStringAsFixed(1)}', style: pw.TextStyle(font: ttf, fontSize: 24, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
                           ]
                         ),
                       ),
@@ -486,7 +519,7 @@ class PdfService {
         "*ID:* ${audit.id}\n"
         "*Hat/İstasyon:* ${audit.line} / ${audit.station}\n"
         "*Denetçi:* ${audit.auditorName}\n"
-        "*Skor:* %${audit.score.toStringAsFixed(1)}\n"
+        "*Skor:* %${audit.score % 1 == 0 ? audit.score.toInt().toString() : audit.score.toStringAsFixed(1)}\n"
         "*Tarih:* ${DateFormat('dd.MM.yyyy HH:mm').format(audit.date)}\n\n"
         "*Uygunsuzluklar:*\n";
 
@@ -556,5 +589,46 @@ class PdfService {
         ],
       ),
     );
+  }
+
+  static PdfColor _getLinePdfColor(String line) {
+    switch (line.toUpperCase()) {
+      case 'M1':
+      case 'M1A':
+      case 'M1B':
+        return PdfColor.fromHex('#E31E24');
+      case 'M2':
+        return PdfColor.fromHex('#009543');
+      case 'M3':
+        return PdfColor.fromHex('#009FE3');
+      case 'M4':
+        return PdfColor.fromHex('#E91E63');
+      case 'M5':
+        return PdfColor.fromHex('#673AB7');
+      case 'M6':
+        return PdfColor.fromHex('#C7B299');
+      case 'M7':
+        return PdfColor.fromHex('#FF4081');
+      case 'M8':
+        return PdfColor.fromHex('#00BCD4');
+      case 'M9':
+        return PdfColor.fromHex('#FFD54F');
+      case 'M11':
+        return PdfColor.fromHex('#9E9E9E');
+      case 'T1':
+        return PdfColor.fromHex('#0054A6');
+      case 'T4':
+        return PdfColor.fromHex('#F07D00');
+      case 'T5':
+        return PdfColor.fromHex('#00A651');
+      case 'F1':
+      case 'F4':
+        return PdfColor.fromHex('#795548');
+      case 'TF1':
+      case 'TF2':
+        return PdfColor.fromHex('#009688');
+      default:
+        return PdfColor.fromHex('#64748B');
+    }
   }
 }

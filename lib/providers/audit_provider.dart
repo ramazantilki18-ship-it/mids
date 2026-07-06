@@ -23,6 +23,7 @@ class AuditProvider extends ChangeNotifier {
   List<AuditModel> _auditHistory = [];
   List<AuditModel> _pendingAudits = [];
   bool _isLoadingDraft = true;
+  bool _isHistoryLoaded = false;
   String? _associatedTaskId;
   Timer? _syncTimer;
 
@@ -45,6 +46,7 @@ class AuditProvider extends ChangeNotifier {
   }
   
   bool get isLoadingDraft => _isLoadingDraft;
+  bool get isHistoryLoaded => _isHistoryLoaded;
   
   QuestionModel get currentQuestion => _activeQuestions[_currentQuestionIndex];
   bool get isFirstQuestion => _currentQuestionIndex == 0;
@@ -81,6 +83,7 @@ class AuditProvider extends ChangeNotifier {
     FirebaseFirestore.instance.collection('audits').orderBy('date', descending: true).snapshots().listen((snapshot) {
       final audits = snapshot.docs.map((doc) => AuditModel.fromMap(doc.data(), doc.id)).toList();
       _auditHistory = audits.where((audit) => !_isDemoAudit(audit)).toList();
+      _isHistoryLoaded = true;
       for (final audit in audits.where(_isDemoAudit)) {
         FirebaseFirestore.instance.collection('audits').doc(audit.id).delete();
       }
