@@ -47,7 +47,8 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/brand/app_icon_denetim_sistemi.png"
+  image_path_android: "assets/brand/app_icon_denetim_sistemi.png"
+  image_path_ios: "assets/brand/ios_app_icon.png"
 
 flutter:
   uses-material-design: true

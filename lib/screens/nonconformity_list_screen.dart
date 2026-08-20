@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
@@ -735,7 +737,8 @@ class _NonconformityListScreenState extends State<NonconformityListScreen>
     if (nc.auditorComment.isNotEmpty) {
       shareText += '📝 AÇIKLAMA: ${nc.auditorComment}\n';
     }
-    shareText += '\nMetro İstanbul Denetim Sistemi üzerinden gönderilmiştir.';
+    String systemName = (!kIsWeb && Platform.isIOS) ? 'Denetim Sistemi' : 'Metro İstanbul Denetim Sistemi';
+    shareText += '\n$systemName üzerinden gönderilmiştir.';
 
     Share.share(shareText, subject: '${nc.station} Uygunsuzluk Bildirimi');
   }

@@ -36,7 +36,7 @@ class AppDrawer extends StatelessWidget {
                 ),
                 SizedBox(height: 8),
                 Text(
-                  'Metro İstanbul Denetim',
+                  'Denetim Sistemi',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 24,
@@ -44,7 +44,7 @@ class AppDrawer extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Metro İstanbul',
+                  'Sistem',
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: 14,

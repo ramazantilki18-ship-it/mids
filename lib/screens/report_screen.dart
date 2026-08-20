@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
@@ -1724,7 +1726,7 @@ class _ReportScreenState extends State<ReportScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('METRO İSTANBUL DENETİM RAPORU',
+                Text((!kIsWeb && Platform.isIOS) ? 'DENETİM SİSTEMİ RAPORU' : 'METRO İSTANBUL DENETİM RAPORU',
                     style: TextStyle(
                         color: Colors.white,
                         fontSize: 10,

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
 import '../theme/app_colors.dart';
 import 'metro_brand_header.dart';
 
@@ -78,7 +80,7 @@ class DrawerMenu extends StatelessWidget {
           ),
           SizedBox(height: 16),
           Text(
-            'Metro İstanbul Denetim',
+            (!kIsWeb && Platform.isIOS) ? 'Denetim Sistemi' : 'Metro İstanbul Denetim',
             style: TextStyle(
               color: Colors.white,
               fontSize: 24,
@@ -86,7 +88,7 @@ class DrawerMenu extends StatelessWidget {
             ),
           ),
           Text(
-            'Metro İstanbul',
+            (!kIsWeb && Platform.isIOS) ? '' : 'Metro İstanbul',
             style: TextStyle(
               color: Colors.white70,
               fontSize: 14,

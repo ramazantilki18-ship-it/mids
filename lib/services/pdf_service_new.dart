@@ -110,7 +110,7 @@ class PdfService {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Image(brandBadge, width: 42, height: 42),
-                  pw.Text('METRO İSTANBUL DENETİM RAPORU',
+                  pw.Text((!kIsWeb && Platform.isIOS) ? 'DENETİM SİSTEMİ RAPORU' : 'METRO İSTANBUL DENETİM RAPORU',
                       style: pw.TextStyle(
                           fontSize: 24,
                           fontWeight: pw.FontWeight.bold,
@@ -215,7 +215,8 @@ class PdfService {
   }
 
   static Future<void> shareToWhatsApp(AuditModel audit) async {
-    String text = "*METRO İSTANBUL DENETİM RAPORU*\n\n"
+    String reportTitle = (!kIsWeb && Platform.isIOS) ? '*DENETİM SİSTEMİ RAPORU*' : '*METRO İSTANBUL DENETİM RAPORU*';
+    String text = "$reportTitle\n\n"
         "*ID:* ${audit.id}\n"
         "*Hat/İstasyon:* ${audit.line} / ${audit.station}\n"
         "*Denetçi:* ${audit.auditorName}\n"
