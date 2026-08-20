@@ -410,7 +410,6 @@ class SystemProvider extends ChangeNotifier {
   }
 
   void _refreshAnnouncementVisibility() {
-    _deactivateExpiredAnnouncements();
     final nextSnapshot = _buildAnnouncementVisibilitySnapshot();
     if (_hasAnnouncementVisibilityChanged(nextSnapshot)) {
       _announcementVisibilitySnapshot = nextSnapshot;
@@ -508,10 +507,10 @@ class SystemProvider extends ChangeNotifier {
   void _startFirestoreSync() {
     _cancelFirestoreSync();
 
-    _usersSub = FirebaseFirestore.instance
+    FirebaseFirestore.instance
         .collection('users')
-        .snapshots()
-        .listen((snapshot) {
+        .get()
+        .then((snapshot) {
       _users.clear();
       if (snapshot.docs.isEmpty) {
         _users.addAll(MockData.users);
@@ -520,7 +519,7 @@ class SystemProvider extends ChangeNotifier {
             .map((doc) => UserModel.fromJson({...doc.data(), 'id': doc.id})));
       }
       notifyListeners();
-    }, onError: (e) => debugPrint('Users Sync Error: $e'));
+    }).catchError((e) => debugPrint('Users Sync Fetch Error: $e'));
 
     _auditTypesSub = FirebaseFirestore.instance.collection('auditTypes').snapshots().listen(
         (snapshot) {
@@ -537,27 +536,6 @@ class SystemProvider extends ChangeNotifier {
         _auditTypes
           ..clear()
           ..addAll(types);
-        
-        try {
-          final doc = snapshot.docs.firstWhere((d) => d.id == AuditTypeModel.fiveSId);
-          final config = doc.data()['config'] as Map?;
-          final allowed = doc.data()['allowedAnswerTypes'] as List?;
-          if (config != null && (config['scaleMin'] == 1 || allowed == null || !allowed.contains('scale6'))) {
-            FirebaseFirestore.instance
-                .collection('auditTypes')
-                .doc(AuditTypeModel.fiveSId)
-                .set(AuditTypeModel.fiveS.toJson());
-          }
-        } catch (_) {}
-      } else {
-        FirebaseFirestore.instance
-            .collection('auditTypes')
-            .doc(AuditTypeModel.fiveSId)
-            .set(AuditTypeModel.fiveS.toJson());
-        FirebaseFirestore.instance
-            .collection('auditTypes')
-            .doc(AuditTypeModel.stationInspectionId)
-            .set(AuditTypeModel.stationInspection.toJson());
       }
       _hydrateQuestionCompatibilityFromAuditTypes();
       notifyListeners();
@@ -720,7 +698,8 @@ class SystemProvider extends ChangeNotifier {
             if (v is Map) {
               final Map<String, int> inner = {};
               v.forEach((key, val) {
-                inner[key.toString()] = (val as num).toInt();
+                final parsedNum = val is num ? val.toInt() : (int.tryParse(val.toString()) ?? 0);
+                inner[key.toString()] = parsedNum;
               });
               _stationNumbers[k.toString()] = inner;
             }
@@ -729,8 +708,7 @@ class SystemProvider extends ChangeNotifier {
         _savePersistentData();
         notifyListeners();
       } else {
-        // Seed defaults to Firebase if no data exists
-        _seedLinesStationsToFirebase();
+        debugPrint('Lines/Stations document does not exist in Firestore. Using local defaults.');
       }
     }, onError: (e) => debugPrint('Lines/Stations Sync Error: $e'));
 

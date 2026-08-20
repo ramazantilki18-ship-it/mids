@@ -282,20 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     // Check title constraints
-    final String titleLower = (user.jobTitle ?? '').trim().toLowerCase();
-    String cleanText(String s) {
-      return s
-          .replaceAll('ı', 'i')
-          .replaceAll('ğ', 'g')
-          .replaceAll('ü', 'u')
-          .replaceAll('ş', 's')
-          .replaceAll('ö', 'o')
-          .replaceAll('ç', 'c')
-          .replaceAll('â', 'a');
-    }
-    final cleanTitle = cleanText(titleLower);
-    final isSupervisorOrManager = cleanTitle.contains('hat vardiya amiri') || cleanTitle.contains('istasyon sorumlusu');
-    if (isSupervisorOrManager) return;
+    if (!auth.hasMobileAccess('puantaj') || !auth.hasMobileAccess('denetim')) return;
 
     final now = DateTime.now();
     final yesterday = now.subtract(const Duration(days: 1));
@@ -329,7 +316,8 @@ class _HomeScreenState extends State<HomeScreen> {
       orElse: () => <String, dynamic>{},
     );
     final bool isWorkShift = shift['type'] == 'work';
-    final int requiredCount = shift['requiredAuditCount'] as int? ?? 0;
+    final rawReq = shift['requiredAuditCount'];
+    final int requiredCount = rawReq is num ? rawReq.toInt() : (int.tryParse(rawReq?.toString() ?? '') ?? 0);
     final int targetCount = isWorkShift ? requiredCount : 0;
 
     if (targetCount <= 0) return;
@@ -1510,23 +1498,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               bool hasFilledRoster = false;
 
                               // Roster requirement only applies to users who can see/access the roster tab
-                              final title = (user.jobTitle ?? '').trim().toLowerCase();
-                              String clean(String s) {
-                                return s
-                                    .replaceAll('ı', 'i')
-                                    .replaceAll('ğ', 'g')
-                                    .replaceAll('ü', 'u')
-                                    .replaceAll('ş', 's')
-                                    .replaceAll('ö', 'o')
-                                    .replaceAll('ç', 'c')
-                                    .replaceAll('â', 'a');
-                              }
-                              final cleanTitle = clean(title);
-                              final isSupervisorOrManager = cleanTitle.contains('hat vardiya amiri') || cleanTitle.contains('istasyon sorumlusu');
-                              final requiredToFill = !isSupervisorOrManager && (
-                                  user.role == UserRole.fieldAuditor || 
-                                  user.role == UserRole.fieldAuditorActionOwner
-                              );
+                              final auth = context.read<AuthProvider>();
+                              final requiredToFill = auth.hasMobileAccess('puantaj') && auth.hasMobileAccess('denetim');
 
                               if (!requiredToFill) {
                                 hasFilledRoster = true;
@@ -1883,21 +1856,8 @@ class _HomeScreenState extends State<HomeScreen> {
       return const SizedBox.shrink();
     }
 
-    final String titleLower = (user.jobTitle ?? '').trim().toLowerCase();
-    String cleanText(String s) {
-      return s
-          .replaceAll('ı', 'i')
-          .replaceAll('ğ', 'g')
-          .replaceAll('ü', 'u')
-          .replaceAll('ş', 's')
-          .replaceAll('ö', 'o')
-          .replaceAll('ç', 'c')
-          .replaceAll('â', 'a');
-    }
-    final cleanTitle = cleanText(titleLower);
-    final isSupervisorOrManager = cleanTitle.contains('hat vardiya amiri') || cleanTitle.contains('istasyon sorumlusu');
-
-    if (isSupervisorOrManager) {
+    final auth = context.read<AuthProvider>();
+    if (!auth.hasMobileAccess('puantaj') || !auth.hasMobileAccess('denetim')) {
       return const SizedBox.shrink();
     }
 
@@ -1913,7 +1873,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final String shiftName = shift['name']?.toString() ?? 'Atanmamış';
     final String shiftHours = shift['hours']?.toString() ?? '';
     final bool isWorkShift = shift['type'] == 'work';
-    final int requiredCount = shift['requiredAuditCount'] as int? ?? 0;
+    final rawReq = shift['requiredAuditCount'];
+    final int requiredCount = rawReq is num ? rawReq.toInt() : (int.tryParse(rawReq?.toString() ?? '') ?? 0);
     final int targetCount = isWorkShift ? requiredCount : 0;
 
     // Calculate completed count for today

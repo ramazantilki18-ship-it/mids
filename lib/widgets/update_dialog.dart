@@ -98,7 +98,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
     final textColor = Theme.of(context).colorScheme.onSurface;
 
     return PopScope(
-      canPop: !_isDownloading, // İndirirken geri tuşuyla kapatmayı engelle
+      canPop: !widget.updateInfo.isForce && !_isDownloading, // Zorunlu güncelleme veya indirme sırasında kapatmayı engelle
       child: Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
@@ -348,30 +348,32 @@ class _UpdateDialogState extends State<UpdateDialog> {
                   padding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
                   child: Row(
                     children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(
-                              color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.1),
+                      if (!widget.updateInfo.isForce) ...[
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.1),
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: Text(
-                            'DAHA SONRA',
-                            style: TextStyle(
-                              color: textColor.withValues(alpha: 0.6),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                              letterSpacing: 0.5,
+                            child: Text(
+                              'DAHA SONRA',
+                              style: TextStyle(
+                                color: textColor.withValues(alpha: 0.6),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                letterSpacing: 0.5,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
+                        const SizedBox(width: 12),
+                      ],
                       Expanded(
                         child: Container(
                           decoration: BoxDecoration(

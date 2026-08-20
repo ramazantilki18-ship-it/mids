@@ -70,8 +70,11 @@ class NonconformityDetailScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('UYGUNSUZLUK ANALİZİ',
-            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+        title: Text(
+            nc.ncNo != null && nc.ncNo!.isNotEmpty
+                ? 'UYGUNSUZLUK (${nc.ncNo})'
+                : 'UYGUNSUZLUK ANALİZİ',
+            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
         centerTitle: true,
         actions: [
           if (isAdmin)
@@ -167,6 +170,19 @@ class NonconformityDetailScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (nc.ncNo != null && nc.ncNo!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      nc.ncNo!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
                 Row(
                   children: [
                     Icon(_getStatusIcon(nc.status), color: color, size: 14),

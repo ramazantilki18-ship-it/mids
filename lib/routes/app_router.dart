@@ -17,6 +17,7 @@ import '../screens/change_password_screen.dart';
 import '../screens/feedback_management_screen.dart';
 import '../screens/report_screen.dart';
 import '../screens/personal_roster_screen.dart';
+import '../screens/field_tracking_screen.dart';
 import '../screens/admin_panel_screen.dart';
 import '../screens/user_management_screen.dart';
 import '../screens/question_management_screen.dart';
@@ -59,6 +60,10 @@ class AppRouter {
           GoRoute(
             path: '/reports',
             builder: (context, state) => const ReportScreen(),
+          ),
+          GoRoute(
+            path: '/field-tracking',
+            builder: (context, state) => const FieldTrackingScreen(),
           ),
         ],
       ),

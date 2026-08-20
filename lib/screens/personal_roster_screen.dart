@@ -6,7 +6,8 @@ import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
 
 class PersonalRosterScreen extends StatefulWidget {
-  const PersonalRosterScreen({super.key});
+  final bool hideExcuseTab;
+  const PersonalRosterScreen({super.key, this.hideExcuseTab = false});
 
   @override
   State<PersonalRosterScreen> createState() => _PersonalRosterScreenState();
@@ -39,7 +40,7 @@ class _PersonalRosterScreenState extends State<PersonalRosterScreen> with Single
   void initState() {
     super.initState();
     _selectedDate = DateTime.now();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: widget.hideExcuseTab ? 1 : 2, vsync: this);
     _loadShiftsAndRoster();
   }
 
@@ -849,7 +850,7 @@ class _PersonalRosterScreenState extends State<PersonalRosterScreen> with Single
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kişisel Puantaj & Mazeret'),
+        title: Text(widget.hideExcuseTab ? 'Aylık Vardiya Planı' : 'Kişisel Puantaj & Mazeret'),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -895,69 +896,73 @@ class _PersonalRosterScreenState extends State<PersonalRosterScreen> with Single
                     ],
                   ),
                 ),
-                // Custom Tab Bar for Puantaj and Mazeret
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 4.0),
-                  child: Container(
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.03),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: TabBar(
-                      controller: _tabController,
-                      indicatorSize: TabBarIndicatorSize.tab,
-                      indicator: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          )
+                if (!widget.hideExcuseTab) ...[
+                  // Custom Tab Bar for Puantaj and Mazeret
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 4.0),
+                    child: Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.03),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TabBar(
+                        controller: _tabController,
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        indicator: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            )
+                          ],
+                        ),
+                        labelColor: isDark ? Colors.white : const Color(0xFF007AFF),
+                        unselectedLabelColor: isDark ? Colors.white38 : Colors.black38,
+                        labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                        tabs: const [
+                          Tab(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.calendar_view_month_rounded, size: 16),
+                                SizedBox(width: 6),
+                                Text('Puantaj Girişi'),
+                              ],
+                            ),
+                          ),
+                          Tab(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.assignment_late_rounded, size: 16),
+                                SizedBox(width: 6),
+                                Text('Mazeret Girişi'),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
-                      labelColor: isDark ? Colors.white : const Color(0xFF007AFF),
-                      unselectedLabelColor: isDark ? Colors.white38 : Colors.black38,
-                      labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-                      tabs: const [
-                        Tab(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.calendar_view_month_rounded, size: 16),
-                              SizedBox(width: 6),
-                              Text('Puantaj Girişi'),
-                            ],
-                          ),
-                        ),
-                        Tab(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.assignment_late_rounded, size: 16),
-                              SizedBox(width: 6),
-                              Text('Mazeret Girişi'),
-                            ],
-                          ),
-                        ),
-                      ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
+                  const SizedBox(height: 8),
+                ],
                 // Tab Views Content
                 Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      // Tab 1: Compact Month Calendar Grid
-                      _buildRosterCalendarGrid(isDark),
-                      // Tab 2: Timeline Excuse List
-                      _buildExcuseList(isDark),
-                    ],
-                  ),
+                  child: widget.hideExcuseTab
+                      ? _buildRosterCalendarGrid(isDark)
+                      : TabBarView(
+                          controller: _tabController,
+                          children: [
+                            // Tab 1: Compact Month Calendar Grid
+                            _buildRosterCalendarGrid(isDark),
+                            // Tab 2: Timeline Excuse List
+                            _buildExcuseList(isDark),
+                          ],
+                        ),
                 ),
               ],
             ),

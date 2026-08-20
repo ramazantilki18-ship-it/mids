@@ -64,9 +64,8 @@ android {
         release {
             signingConfig = signingConfigs.release
             
-            // Kod küçültme ve kaynak temizliğini etkinleştir
-            minifyEnabled true
-            shrinkResources true
+            minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

@@ -3,6 +3,8 @@ import 'package:nfc_manager/nfc_manager.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'dart:io' show Platform;
+import 'package:provider/provider.dart';
+import '../services/field_tracking_service.dart';
 import '../theme/app_colors.dart';
 
 enum VerificationMode { nfc, location }
@@ -162,7 +164,7 @@ class _VerificationFlowDialogState extends State<VerificationFlowDialog> {
               if (_compareNfcUids(uid, widget.expectedNfcUid ?? '')) {
                 await NfcManager.instance.stopSession();
                 if (mounted) {
-                  Navigator.pop(context, true);
+                  _onVerificationSuccess();
                 }
               } else {
                 if (mounted) {
@@ -299,7 +301,7 @@ class _VerificationFlowDialogState extends State<VerificationFlowDialog> {
         });
         Future.delayed(const Duration(milliseconds: 1200), () {
           if (mounted) {
-            Navigator.pop(context, true);
+            _onVerificationSuccess();
           }
         });
       } else {
@@ -438,7 +440,7 @@ class _VerificationFlowDialogState extends State<VerificationFlowDialog> {
               ElevatedButton(
                 onPressed: () {
                   if (_compareNfcUids(_manualController.text.trim(), widget.expectedNfcUid ?? '')) {
-                    Navigator.pop(context, true);
+                    _onVerificationSuccess();
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Girdiğiniz kod hatalı!')),
@@ -467,5 +469,19 @@ class _VerificationFlowDialogState extends State<VerificationFlowDialog> {
         ),
       ],
     );
+  }
+
+  void _onVerificationSuccess() {
+    try {
+      final trackingService = context.read<FieldTrackingService>();
+      if (trackingService.isTracking) {
+        trackingService.recordManualVisit(widget.stationName);
+      }
+    } catch (e) {
+      debugPrint('Saha Takibi - Manuel doğrulama kaydetme hatası: $e');
+    }
+    if (mounted) {
+      Navigator.pop(context, true);
+    }
   }
 }

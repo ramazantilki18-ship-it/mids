@@ -157,8 +157,11 @@ class AuditSummaryScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('DENETİM RAPORU',
-            style: TextStyle(
+        title: Text(
+            audit!.auditNo != null && audit!.auditNo!.isNotEmpty
+                ? 'DENETİM RAPORU (${audit!.auditNo})'
+                : 'DENETİM RAPORU',
+            style: const TextStyle(
                 fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1.2)),
         elevation: 0,
         centerTitle: true,
@@ -344,8 +347,26 @@ class AuditSummaryScreen extends StatelessWidget {
                             ),
                           ],
                         ),
-                      const SizedBox(height: 16),
-
+                      if (audit!.auditNo != null && audit!.auditNo!.isNotEmpty) ...[
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                          ),
+                          child: Text(
+                            'Denetim No: ${audit!.auditNo}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 6),

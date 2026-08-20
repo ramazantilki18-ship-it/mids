@@ -11,10 +11,46 @@ class AuthProvider extends ChangeNotifier {
   Map<String, Map<String, bool>> _rolePermissions = {};
   StreamSubscription<DocumentSnapshot>? _userListenerSubscription;
   StreamSubscription<DocumentSnapshot>? _permissionsSubscription;
+  StreamSubscription<DocumentSnapshot>? _mobilePermissionsSubscription;
+  Map<String, dynamic> _mobilePermissions = {};
 
   UserModel? get user => _user;
   UserModel? get currentUser => _user; // Alias for compatibility with screens
   bool get isAuthenticated => _isAuthenticated;
+  Map<String, dynamic> get mobilePermissions => _mobilePermissions;
+
+  static const Map<String, dynamic> DEFAULT_MOBILE_PERMISSIONS = {
+    'titles': {},
+    'roles': {
+      'Super_Admin': {'panel': true, 'denetim': true, 'takip': true, 'puantaj': true, 'analiz': true, 'sahaTakip': true},
+      'Executive_Viewer_Global': {'panel': true, 'denetim': false, 'takip': true, 'puantaj': false, 'analiz': true, 'sahaTakip': false},
+      'Executive_Viewer_Restricted': {'panel': true, 'denetim': false, 'takip': true, 'puantaj': false, 'analiz': true, 'sahaTakip': false},
+      'Approver': {'panel': true, 'denetim': true, 'takip': true, 'puantaj': true, 'analiz': true, 'sahaTakip': true},
+      'Field_Auditor_Action_Owner': {'panel': true, 'denetim': true, 'takip': true, 'puantaj': true, 'analiz': false, 'sahaTakip': true},
+      'Field_Auditor': {'panel': true, 'denetim': true, 'takip': true, 'puantaj': true, 'analiz': false, 'sahaTakip': true},
+    }
+  };
+
+  bool hasMobileAccess(String pageKey) {
+    if (_user == null) return false;
+    if (_user!.role == UserRole.superAdmin) return true;
+
+    final titleKey = _user!.jobTitle;
+    if (titleKey != null && titleKey.isNotEmpty) {
+      final titleConfig = _mobilePermissions['titles']?[titleKey] as Map?;
+      if (titleConfig != null) {
+        return titleConfig[pageKey] == true;
+      }
+      final defaultTitleConfig = DEFAULT_MOBILE_PERMISSIONS['titles']?[titleKey] as Map?;
+      if (defaultTitleConfig != null) {
+        return defaultTitleConfig[pageKey] == true;
+      }
+    }
+
+    final roleKey = _user!.role.nameInFirebase;
+    final roleConfig = (_mobilePermissions['roles']?[roleKey] ?? DEFAULT_MOBILE_PERMISSIONS['roles']?[roleKey]) as Map?;
+    return roleConfig != null ? (roleConfig[pageKey] == true) : false;
+  }
 
   // Web panelindeki varsayÄ±lan yetki matrisiyle tam uyumlu statik yetkiler
   static const Map<String, Map<String, bool>> DEFAULT_ROLE_PERMISSIONS = {
@@ -124,7 +160,6 @@ class AuthProvider extends ChangeNotifier {
 
   AuthProvider() {
     _initAuthListener();
-    _startPermissionsListener();
   }
 
   void _initAuthListener() {
@@ -133,11 +168,24 @@ class AuthProvider extends ChangeNotifier {
         _isAuthenticated = true;
         final userDocId = await _loadUserProfile(firebaseUser);
         _startUserDocListener(userDocId);
+        _startPermissionsListener();
+        _startMobilePermissionsListener();
       } else {
         _user = null;
         _isAuthenticated = false;
+        
         _userListenerSubscription?.cancel();
         _userListenerSubscription = null;
+        
+        _permissionsSubscription?.cancel();
+        _permissionsSubscription = null;
+        
+        _mobilePermissionsSubscription?.cancel();
+        _mobilePermissionsSubscription = null;
+        
+        _mobilePermissions = {};
+        _rolePermissions = {};
+        
         notifyListeners();
       }
     });
@@ -185,6 +233,22 @@ class AuthProvider extends ChangeNotifier {
       }
     }, onError: (err) {
       print('Permissions matrix sync error: $err');
+    });
+  }
+
+  void _startMobilePermissionsListener() {
+    _mobilePermissionsSubscription?.cancel();
+    _mobilePermissionsSubscription = FirebaseFirestore.instance
+        .collection('system_config')
+        .doc('mobile_permissions')
+        .snapshots()
+        .listen((doc) {
+      if (doc.exists && doc.data() != null) {
+        _mobilePermissions = doc.data()!;
+        notifyListeners();
+      }
+    }, onError: (err) {
+      print('Mobile permissions matrix sync error: $err');
     });
   }
 
@@ -384,9 +448,9 @@ class AuthProvider extends ChangeNotifier {
       return normalizedInput;
     }
 
-    throw Exception(
-      'Lutfen kurumsal e-posta adresinizle veya tanimli kullanici adinizla giris yapin.',
-    );
+    // Fallback: If we couldn't resolve or query failed (e.g. permission denied before auth),
+    // construct the email directly.
+    return '$normalizedInput@test.com';
   }
 
   Future<String?> _findUserEmailByUsername(String username) async {
@@ -400,14 +464,20 @@ class AuthProvider extends ChangeNotifier {
     }.where((value) => value.isNotEmpty).toList();
 
     final docs = <DocumentSnapshot<Map<String, dynamic>>>[];
-    for (final candidate in candidates) {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('username', isEqualTo: candidate)
-          .limit(5)
-          .get()
-          .timeout(const Duration(seconds: 5));
-      docs.addAll(snapshot.docs);
+    try {
+      for (final candidate in candidates) {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('username', isEqualTo: candidate)
+            .limit(5)
+            .get()
+            .timeout(const Duration(seconds: 5));
+        docs.addAll(snapshot.docs);
+      }
+    } catch (e) {
+      // Catch permission-denied or timeout when unauthenticated
+      debugPrint('Error querying user email by username (unauthenticated/unauthorized): $e');
+      return null;
     }
 
     if (docs.isEmpty) return null;

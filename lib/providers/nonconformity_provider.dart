@@ -95,11 +95,17 @@ class NonconformityProvider extends ChangeNotifier {
   List<NonconformityModel> _processSnapshotDocs(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
     final List<NonconformityModel> list = [];
     for (final doc in docs) {
-      final nc = NonconformityModel.fromMap(doc.data(), doc.id);
-      if (_isDemoNonconformity(nc)) {
-        FirebaseFirestore.instance.collection('nonconformities').doc(nc.id).delete();
-      } else {
-        list.add(nc);
+      try {
+        final nc = NonconformityModel.fromMap(doc.data(), doc.id);
+        if (_isDemoNonconformity(nc)) {
+          try {
+            FirebaseFirestore.instance.collection('nonconformities').doc(nc.id).delete();
+          } catch (_) {}
+        } else {
+          list.add(nc);
+        }
+      } catch (e) {
+        debugPrint('Skipping malformed nonconformity doc (${doc.id}): $e');
       }
     }
     return list;

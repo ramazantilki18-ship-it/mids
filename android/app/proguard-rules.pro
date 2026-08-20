@@ -1,30 +1,25 @@
-# Flutter Proguard Rules
+# Flutter & Plugin Proguard Rules
 
-# Keep Flutter Common Classes
--keep class io.flutter.app.** { *; }
--keep class io.flutter.plugin.** { *; }
--keep class io.flutter.util.** { *; }
--keep class io.flutter.view.** { *; }
--keep class io.flutter.embedding.** { *; }
--keep class io.flutter.provider.** { *; }
+# Flutter Core & Plugins
+-keep class io.flutter.** { *; }
+-keep class io.flutter.plugins.** { *; }
 
-# Keep Firebase classes to prevent auth/firestore issues
+# Firebase & Google Play Services
 -keep class com.google.firebase.** { *; }
 -dontwarn com.google.firebase.**
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.android.gms.**
 
-# Google Play Core (Deferred Components / Dynamic Feature) uyarilarini gec
--dontwarn com.google.android.play.core.**
-
-# Keep standard classes
--dontwarn javax.annotation.**
--dontwarn org.checkerframework.**
--dontwarn org.codehaus.mojo.animalsniffer.**
-
-# Keep ota_update classes
+# Native Plugins (Geolocator, SQLite, NFC, Plus Plugins, OTA)
+-keep class com.baseflow.** { *; }
+-keep class dev.fluttercommunity.** { *; }
+-keep class com.tekartik.** { *; }
 -keep class sk.fourq.otaupdate.** { *; }
-
-# Keep nfc_manager classes
 -keep class io.flutter.plugins.nfc_manager.** { *; }
 -keep class io.flutter.plugins.nfcmanager.** { *; }
 
-
+# Warnings
+-dontwarn javax.annotation.**
+-dontwarn org.checkerframework.**
+-dontwarn org.codehaus.mojo.animalsniffer.**
+-dontwarn com.google.android.play.core.**

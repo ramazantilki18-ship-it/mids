@@ -156,56 +156,99 @@ class AuditAnswer {
       };
 
   factory AuditAnswer.fromMap(Map<String, dynamic> map) {
-    final legacyPaths = List<String>.from(map['photoPaths'] ?? []);
-    final storedPhotos = ((map['photos'] as List?) ?? [])
-        .map((p) {
-          if (p is String) {
-            return AnswerPhoto(id: 'photo-${p.hashCode.abs()}', url: p);
-          }
-          if (p is Map) {
-            return AnswerPhoto.fromMap(Map<String, dynamic>.from(p));
-          }
-          return null;
-        })
-        .whereType<AnswerPhoto>()
-        .where((p) => p.url.isNotEmpty)
-        .toList();
-    final photosByUrl = <String, AnswerPhoto>{
-      for (final photo in _photosFromLegacyPaths(legacyPaths)) photo.url: photo,
-      for (final photo in storedPhotos) photo.url: photo,
-    };
-    final mergedPaths = photosByUrl.keys.where((url) => url.isNotEmpty).toList();
-    final rawScore = map['score'] ?? map['value'] ?? 0;
-    final score = rawScore is num ? rawScore.toInt() : (rawScore == true ? 1 : 0);
+    try {
+      final rawPhotoPaths = map['photoPaths'];
+      final legacyPaths = rawPhotoPaths is List
+          ? rawPhotoPaths.map((e) => e?.toString() ?? '').where((e) => e.isNotEmpty).toList()
+          : <String>[];
 
-    final rawAddNCs = map['additionalNonconformities'] as List? ?? const [];
-    final additionalNonconformities = rawAddNCs
-        .map((e) => e is Map ? AdditionalNonconformity.fromMap(Map<String, dynamic>.from(e)) : null)
-        .whereType<AdditionalNonconformity>()
-        .toList();
+      final rawPhotos = map['photos'];
+      final storedPhotos = rawPhotos is List
+          ? (rawPhotos
+              .map((p) {
+                if (p is String && p.isNotEmpty) {
+                  return AnswerPhoto(id: 'photo-${p.hashCode.abs()}', url: p);
+                }
+                if (p is Map) {
+                  try {
+                    return AnswerPhoto.fromMap(Map<String, dynamic>.from(p));
+                  } catch (_) {
+                    return null;
+                  }
+                }
+                return null;
+              })
+              .whereType<AnswerPhoto>()
+              .where((p) => p.url.isNotEmpty)
+              .toList())
+          : <AnswerPhoto>[];
 
-    return AuditAnswer(
-      questionId: map['questionId'] ?? '',
-      questionText: map['questionText'] as String?,
-      categoryId: map['categoryId'] as String?,
-      categoryName: map['categoryName'] as String?,
-      orderIndex: (map['orderIndex'] as num?)?.toInt(),
-      score: score,
-      comment: map['comment'] as String?,
-      additionalComments: List<String>.from(map['additionalComments'] ?? []),
-      photoPaths: mergedPaths,
-      photos: photosByUrl.values.toList(),
-      isNonconformity: map['isNonconformity'] ?? false,
-      answerType: AnswerType.values.firstWhere(
-        (e) => e.name.toLowerCase() == (map['answerType'] as String? ?? 'scale').toLowerCase(),
-        orElse: () => AnswerType.scale,
-      ),
-      value: map['value'],
-      weightedScore: (map['weightedScore'] as num?)?.toDouble(),
-      isCorrect: map['isCorrect'] as bool?,
-      isOutOfScope: map['isOutOfScope'] ?? false,
-      additionalNonconformities: additionalNonconformities,
-    );
+      final photosByUrl = <String, AnswerPhoto>{
+        for (final photo in _photosFromLegacyPaths(legacyPaths)) photo.url: photo,
+        for (final photo in storedPhotos) photo.url: photo,
+      };
+      final mergedPaths = photosByUrl.keys.where((url) => url.isNotEmpty).toList();
+      final rawScore = map['score'] ?? map['value'] ?? 0;
+      final score = rawScore is num
+          ? rawScore.toInt()
+          : (rawScore == true ? 1 : (int.tryParse(rawScore.toString()) ?? 0));
+
+      final rawAddNCs = map['additionalNonconformities'];
+      final additionalNonconformities = rawAddNCs is List
+          ? (rawAddNCs
+              .map((e) {
+                if (e is Map) {
+                  try {
+                    return AdditionalNonconformity.fromMap(Map<String, dynamic>.from(e));
+                  } catch (_) {
+                    return null;
+                  }
+                }
+                return null;
+              })
+              .whereType<AdditionalNonconformity>()
+              .toList())
+          : <AdditionalNonconformity>[];
+
+      final rawComments = map['additionalComments'];
+      final additionalComments = rawComments is List
+          ? rawComments.map((e) => e?.toString() ?? '').where((e) => e.isNotEmpty).toList()
+          : <String>[];
+
+      return AuditAnswer(
+        questionId: map['questionId']?.toString() ?? '',
+        questionText: map['questionText']?.toString(),
+        categoryId: map['categoryId']?.toString(),
+        categoryName: map['categoryName']?.toString(),
+        orderIndex: map['orderIndex'] is num
+            ? (map['orderIndex'] as num).toInt()
+            : int.tryParse(map['orderIndex']?.toString() ?? ''),
+        score: score,
+        comment: map['comment']?.toString(),
+        additionalComments: additionalComments,
+        photoPaths: mergedPaths,
+        photos: photosByUrl.values.toList(),
+        isNonconformity: map['isNonconformity'] == true ||
+            map['isNonconformity']?.toString().toLowerCase() == 'true',
+        answerType: AnswerType.values.firstWhere(
+          (e) => e.name.toLowerCase() == (map['answerType']?.toString() ?? 'scale').toLowerCase(),
+          orElse: () => AnswerType.scale,
+        ),
+        value: map['value'],
+        weightedScore: map['weightedScore'] is num
+            ? (map['weightedScore'] as num).toDouble()
+            : double.tryParse(map['weightedScore']?.toString() ?? ''),
+        isCorrect: map['isCorrect'] is bool ? map['isCorrect'] as bool : null,
+        isOutOfScope: map['isOutOfScope'] == true ||
+            map['isOutOfScope']?.toString().toLowerCase() == 'true',
+        additionalNonconformities: additionalNonconformities,
+      );
+    } catch (_) {
+      return AuditAnswer(
+        questionId: map['questionId']?.toString() ?? '',
+        score: 0,
+      );
+    }
   }
 
   Map<String, dynamic> toJson() => toMap();
@@ -214,6 +257,7 @@ class AuditAnswer {
 
 class AuditModel {
   final String id;
+  final String? auditNo;
   final DateTime date;
   final String line;
   final String station;
@@ -229,6 +273,7 @@ class AuditModel {
 
   AuditModel({
     required this.id,
+    this.auditNo,
     required this.date,
     required this.line,
     required this.station,
@@ -251,6 +296,7 @@ class AuditModel {
 
   AuditModel copyWith({
     String? id,
+    String? auditNo,
     DateTime? date,
     String? line,
     String? station,
@@ -266,6 +312,7 @@ class AuditModel {
   }) {
     return AuditModel(
       id: id ?? this.id,
+      auditNo: auditNo ?? this.auditNo,
       date: date ?? this.date,
       line: line ?? this.line,
       station: station ?? this.station,
@@ -283,6 +330,7 @@ class AuditModel {
 
   Map<String, dynamic> toMap() => {
         'id': id,
+        'auditNo': auditNo,
         'date': date.toIso8601String(),
         'line': line,
         'station': station,
@@ -306,26 +354,48 @@ class AuditModel {
   }
 
   factory AuditModel.fromMap(Map<String, dynamic> map, [String? docId]) {
-    final answers = List<AuditAnswer>.from(
-      (map['answers'] ?? []).map((x) => AuditAnswer.fromMap(Map<String, dynamic>.from(x))),
-    );
-    final rawScore = map['score'] ?? 0.0;
-    final storedScore = rawScore is num ? rawScore.toDouble() : double.tryParse(rawScore.toString()) ?? 0.0;
+    try {
+      final rawAnswers = map['answers'];
+      final answers = <AuditAnswer>[];
+      if (rawAnswers is List) {
+        for (final x in rawAnswers) {
+          if (x is Map) {
+            try {
+              answers.add(AuditAnswer.fromMap(Map<String, dynamic>.from(x)));
+            } catch (_) {}
+          }
+        }
+      }
 
-    return AuditModel(
-      id: docId ?? map['id'] ?? '',
-      date: _parseDateTime(map['date']) ?? DateTime.now(),
-      line: map['line'] ?? '',
-      station: map['station'] ?? '',
-      auditorId: map['auditorId'] ?? '',
-      auditorName: map['auditorName'] ?? '',
-      auditType: map['auditType'] ?? 'Denetim Tipi',
-      auditTypeId: map['auditTypeId']?.toString() ?? '',
-      isCompleted: map['isCompleted'] ?? false,
-      score: storedScore,
-      answers: answers,
-      startedAt: _parseDateTime(map['startedAt']),
-      completedAt: _parseDateTime(map['completedAt']),
-    );
+      final rawScore = map['score'] ?? 0.0;
+      final storedScore = rawScore is num ? rawScore.toDouble() : (double.tryParse(rawScore.toString()) ?? 0.0);
+
+      return AuditModel(
+        id: docId ?? map['id']?.toString() ?? '',
+        auditNo: map['auditNo']?.toString(),
+        date: _parseDateTime(map['date']) ?? DateTime.now(),
+        line: map['line']?.toString() ?? '',
+        station: map['station']?.toString() ?? '',
+        auditorId: map['auditorId']?.toString() ?? '',
+        auditorName: map['auditorName']?.toString() ?? '',
+        auditType: map['auditType']?.toString() ?? 'Denetim Tipi',
+        auditTypeId: map['auditTypeId']?.toString() ?? '',
+        isCompleted: map['isCompleted'] == true || map['isCompleted']?.toString().toLowerCase() == 'true',
+        score: storedScore,
+        answers: answers,
+        startedAt: _parseDateTime(map['startedAt']),
+        completedAt: _parseDateTime(map['completedAt']),
+      );
+    } catch (_) {
+      return AuditModel(
+        id: docId ?? map['id']?.toString() ?? '',
+        date: DateTime.now(),
+        line: map['line']?.toString() ?? '',
+        station: map['station']?.toString() ?? '',
+        auditorId: map['auditorId']?.toString() ?? '',
+        auditorName: map['auditorName']?.toString() ?? '',
+        auditType: map['auditType']?.toString() ?? 'Denetim Tipi',
+      );
+    }
   }
 }

@@ -194,23 +194,8 @@ class _StartAuditScreenState extends State<StartAuditScreen> {
                         bool hasFilledRoster = false;
 
                         // Roster requirement only applies to users who can see/access the roster tab
-                        final title = (user?.jobTitle ?? '').trim().toLowerCase();
-                        String clean(String s) {
-                          return s
-                              .replaceAll('ı', 'i')
-                              .replaceAll('ğ', 'g')
-                              .replaceAll('ü', 'u')
-                              .replaceAll('ş', 's')
-                              .replaceAll('ö', 'o')
-                              .replaceAll('ç', 'c')
-                              .replaceAll('â', 'a');
-                        }
-                        final cleanTitle = clean(title);
-                        final isSupervisorOrManager = cleanTitle.contains('hat vardiya amiri') || cleanTitle.contains('istasyon sorumlusu');
-                        final requiredToFill = !isSupervisorOrManager && (
-                            user?.role == UserRole.fieldAuditor || 
-                            user?.role == UserRole.fieldAuditorActionOwner
-                        );
+                        final auth = context.read<AuthProvider>();
+                        final requiredToFill = auth.hasMobileAccess('puantaj') && auth.hasMobileAccess('denetim');
 
                         if (!requiredToFill) {
                           hasFilledRoster = true;

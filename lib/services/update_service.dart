@@ -10,6 +10,7 @@ class UpdateInfo {
   final String currentVersion;
   final String downloadUrl;
   final String releaseNotes;
+  final bool isForce;
 
   UpdateInfo({
     required this.isAvailable,
@@ -17,6 +18,7 @@ class UpdateInfo {
     required this.currentVersion,
     required this.downloadUrl,
     required this.releaseNotes,
+    this.isForce = false,
   });
 }
 
@@ -59,6 +61,8 @@ class UpdateService {
       }
 
       final bool isAvailable = _isNewerVersion(currentVersion, latestTagName) && downloadUrl.isNotEmpty;
+      final bool isForce = releaseNotes.toUpperCase().contains('[ZORUNLU]') ||
+          releaseNotes.toUpperCase().contains('[MANDATORY]');
 
       return UpdateInfo(
         isAvailable: isAvailable,
@@ -66,6 +70,7 @@ class UpdateService {
         currentVersion: currentVersion,
         downloadUrl: downloadUrl,
         releaseNotes: releaseNotes,
+        isForce: isForce,
       );
     } catch (e) {
       print('GÜNCELLEME KONTROL HATASI: $e');
@@ -75,6 +80,7 @@ class UpdateService {
         currentVersion: '',
         downloadUrl: '',
         releaseNotes: 'Güncelleme kontrolü başarısız oldu.',
+        isForce: false,
       );
     }
   }

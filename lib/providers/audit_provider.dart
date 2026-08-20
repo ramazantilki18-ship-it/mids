@@ -79,15 +79,36 @@ class AuditProvider extends ChangeNotifier {
   }
 
   void _initRealtimeSync() {
-    // Listen for Firestore Audits Real-time
-    FirebaseFirestore.instance.collection('audits').orderBy('date', descending: true).snapshots().listen((snapshot) {
-      final audits = snapshot.docs.map((doc) => AuditModel.fromMap(doc.data(), doc.id)).toList();
+    // Listen for Firestore Audits Real-time safely for the last 45 days only
+    // This prevents downloading all 5000+ audits on every mobile app load
+    final date45DaysAgo = DateTime.now().subtract(const Duration(days: 45));
+    final date45DaysAgoStr = date45DaysAgo.toIso8601String();
+
+    FirebaseFirestore.instance
+        .collection('audits')
+        .where('date', isGreaterThanOrEqualTo: date45DaysAgoStr)
+        .snapshots()
+        .listen((snapshot) {
+      final List<AuditModel> audits = [];
+      for (final doc in snapshot.docs) {
+        try {
+          audits.add(AuditModel.fromMap(doc.data(), doc.id));
+        } catch (e) {
+          debugPrint('Skipping malformed audit doc (${doc.id}): $e');
+        }
+      }
+      // Sort descending by date in-memory
+      audits.sort((a, b) => b.date.compareTo(a.date));
       _auditHistory = audits.where((audit) => !_isDemoAudit(audit)).toList();
       _isHistoryLoaded = true;
       for (final audit in audits.where(_isDemoAudit)) {
-        FirebaseFirestore.instance.collection('audits').doc(audit.id).delete();
+        try {
+          FirebaseFirestore.instance.collection('audits').doc(audit.id).delete();
+        } catch (_) {}
       }
       _loadPendingAudits();
+    }, onError: (e) {
+      debugPrint('Firestore Audits Sync Error: $e');
     });
   }
 
@@ -181,8 +202,19 @@ class AuditProvider extends ChangeNotifier {
     _activeQuestions = List.from(questions);
     _activeAuditType = auditTypeConfig ?? AuditTypeModel.stationInspection;
     _currentAnswers = _buildDefaultAnswers(_activeAuditType, _activeQuestions);
+    int nextSeq = _auditHistory.length + 1;
+    for (final a in _auditHistory) {
+      if (a.auditNo != null && a.auditNo!.startsWith('D-')) {
+        final numPart = int.tryParse(a.auditNo!.substring(2));
+        if (numPart != null && numPart >= nextSeq) {
+          nextSeq = numPart + 1;
+        }
+      }
+    }
+    final generatedAuditNo = 'D-${nextSeq.toString().padLeft(5, '0')}';
     _currentAudit = AuditModel(
       id: 'A-${DateTime.now().millisecondsSinceEpoch}',
+      auditNo: generatedAuditNo,
       date: DateTime.now(),
       line: line,
       station: station,

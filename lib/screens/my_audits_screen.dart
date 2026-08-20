@@ -740,7 +740,17 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // İstasyon adı (büyük)
+                      if (audit.auditNo != null && audit.auditNo!.isNotEmpty) ...[
+                        Text(
+                          audit.auditNo!,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                      ],
                       Text(
                         audit.station,
                         style: TextStyle(
