@@ -43,6 +43,56 @@ class PendingUploadService {
     } catch (e) {
       debugPrint('PendingUpload enqueue error: $e');
     }
+  /// Yerel SQLite (DatabaseHelper) ve hafızadaki tüm denetimleri kuyruğa alır ve yüklemeyi başlatır.
+  static Future<int> forceRescueAllAudits({
+    required List<QuestionModel> questions,
+    required List<AuditModel> auditHistory,
+  }) async {
+    int count = 0;
+    final Set<String> enqueuedIds = {};
+
+    // 1. Yerel SQLite veri tabanındaki tüm denetimleri tara
+    try {
+      if (!kIsWeb) {
+        final sqliteAudits = await DatabaseHelper.instance.getAudits();
+        for (var audit in sqliteAudits) {
+          if (!enqueuedIds.contains(audit.id)) {
+            await enqueue(
+              audit: audit,
+              answers: audit.answers,
+              questions: questions,
+              taskId: null,
+            );
+            enqueuedIds.add(audit.id);
+            count++;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('SQLite rescue error: $e');
+    }
+
+    // 2. AuditHistory listesini tara
+    for (var audit in auditHistory) {
+      if (!enqueuedIds.contains(audit.id)) {
+        try {
+          await enqueue(
+            audit: audit,
+            answers: audit.answers,
+            questions: questions,
+            taskId: null,
+          );
+          enqueuedIds.add(audit.id);
+          count++;
+        } catch (e) {
+          debugPrint('AuditHistory rescue error: $e');
+        }
+      }
+    }
+
+    // 3. Kuyruğu işlemeye başla
+    processPendingUploads();
+    return count;
   }
 
   /// Kuyrukta bekleyen denetim sayısını döndürür.

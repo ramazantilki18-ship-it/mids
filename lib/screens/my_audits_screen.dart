@@ -153,33 +153,22 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
     final auditProvider = context.read<AuditProvider>();
     final systemProvider = context.read<SystemProvider>();
     
-    int rescued = 0;
-    for (var audit in auditProvider.auditHistory) {
-      try {
-        await PendingUploadService.enqueue(
-          audit: audit,
-          answers: audit.answers,
-          questions: systemProvider.questions,
-          taskId: null,
-        );
-        rescued++;
-      } catch (e) {
-        debugPrint('Rescue error: $e');
-      }
-    }
+    final rescued = await PendingUploadService.forceRescueAllAudits(
+      questions: systemProvider.questions,
+      auditHistory: auditProvider.auditHistory,
+    );
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(rescued > 0 
-            ? '$rescued adet denetim kurtarma kuyruğuna eklendi! Arka planda tekrar yükleniyor...'
+            ? '$rescued adet denetim kurtarma kuyruğuna eklendi! Arka planda yükleniyor...'
             : 'Kurtarılacak denetim bulunamadı.'),
           duration: const Duration(seconds: 5),
           backgroundColor: rescued > 0 ? Colors.green : Colors.orange,
         ),
       );
     }
-    PendingUploadService.processPendingUploads();
   }
 
   int _activeFilterCount() {

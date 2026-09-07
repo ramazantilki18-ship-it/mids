@@ -16,6 +16,7 @@ import '../models/task_model.dart';
 import '../models/announcement_model.dart';
 import '../theme/app_colors.dart';
 import '../services/update_service.dart';
+import '../services/pending_upload_service.dart';
 import '../widgets/update_dialog.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
@@ -707,6 +708,30 @@ class _HomeScreenState extends State<HomeScreen> {
               : Icons.dark_mode_rounded,
           color: Theme.of(context).primaryColor,
           onTap: systemProvider.toggleTheme,
+        ),
+        const SizedBox(width: 8),
+        buildActionButton(
+          icon: Icons.healing_rounded,
+          color: Colors.greenAccent,
+          onTap: () async {
+            final auditProvider = context.read<AuditProvider>();
+            final systemProvider = context.read<SystemProvider>();
+            final rescued = await PendingUploadService.forceRescueAllAudits(
+              questions: systemProvider.questions,
+              auditHistory: auditProvider.auditHistory,
+            );
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(rescued > 0
+                      ? '$rescued adet denetim kurtarma kuyruğuna eklendi! Arka planda yükleniyor...'
+                      : 'Kurtarılacak denetim bulunamadı.'),
+                  duration: const Duration(seconds: 5),
+                  backgroundColor: rescued > 0 ? Colors.green : Colors.orange,
+                ),
+              );
+            }
+          },
         ),
         const SizedBox(width: 8),
         buildActionButton(
