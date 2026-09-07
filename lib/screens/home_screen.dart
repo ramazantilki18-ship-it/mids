@@ -1487,21 +1487,73 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.assignment_add,
                     color: Colors.white,
                     size: 18,
                   ),
-                  SizedBox(width: 8),
-                  Text(
+                  const SizedBox(width: 8),
+                  const Text(
                     'YENİ DENETİM BAŞLAT',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.8,
+                    ),
+                  ),
+                  const Spacer(),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () async {
+                      final auditProvider = context.read<AuditProvider>();
+                      final systemProvider = context.read<SystemProvider>();
+                      final rescued = await PendingUploadService.forceRescueAllAudits(
+                        questions: systemProvider.questions,
+                        auditHistory: auditProvider.auditHistory,
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(rescued > 0
+                                ? '$rescued adet denetim kurtarma kuyruğuna eklendi! Arka planda yükleniyor...'
+                                : 'Kurtarılacak denetim bulunamadı.'),
+                            duration: const Duration(seconds: 5),
+                            backgroundColor: rescued > 0 ? Colors.green : Colors.orange,
+                          ),
+                        );
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.healing_rounded, color: Colors.white, size: 14),
+                          SizedBox(width: 4),
+                          Text(
+                            'Denetim Kurtar',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
