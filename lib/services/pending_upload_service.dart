@@ -82,9 +82,7 @@ class PendingUploadService {
       for (final entryJson in entries) {
         try {
           final data = jsonDecode(entryJson) as Map<String, dynamic>;
-          await _processEntry(data).timeout(const Duration(seconds: 300), onTimeout: () {
-            throw Exception('processEntry timeout: Total upload took too long');
-          });
+          await _processEntry(data);
           debugPrint('✅ PendingUpload: 1 denetim başarıyla yüklendi');
         } catch (e) {
           debugPrint('❌ PendingUpload: İşlem başarısız: $e');
