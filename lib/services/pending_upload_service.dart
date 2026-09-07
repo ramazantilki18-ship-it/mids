@@ -133,14 +133,15 @@ class PendingUploadService {
 
         if (hasUploadableMain) {
           try {
-            uploadedMainUrls = await StorageService.uploadPhotoPaths(
+            final uploaded = await StorageService.uploadPhotoPaths(
               paths: answer.allPhotoUrls,
               auditId: audit.id,
               questionId: answer.questionId,
             );
+            uploadedMainUrls = uploaded.isNotEmpty ? uploaded : answer.allPhotoUrls;
           } catch (e) {
-            debugPrint('Main photo upload failed: $e');
-            rethrow;
+            debugPrint('Main photo upload failed (fallback to existing): $e');
+            uploadedMainUrls = answer.allPhotoUrls;
           }
         } else {
           uploadedMainUrls = answer.allPhotoUrls;
@@ -161,14 +162,15 @@ class PendingUploadService {
                 auditId: audit.id,
                 questionId: answer.questionId,
               );
+              final safeUrl = (urls.isNotEmpty && urls.first.isNotEmpty) ? urls.first : addNc.photoUrl;
               uploadedAddNcs.add(AdditionalNonconformity(
                 id: addNc.id,
-                photoUrl: urls.first,
+                photoUrl: safeUrl,
                 comment: addNc.comment,
               ));
             } catch (e) {
-              debugPrint('Additional NC photo upload failed: $e');
-              rethrow;
+              debugPrint('Additional NC photo upload failed (fallback to existing): $e');
+              uploadedAddNcs.add(addNc);
             }
           } else {
             uploadedAddNcs.add(addNc);

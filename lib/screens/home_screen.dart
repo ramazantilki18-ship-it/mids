@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'start_audit_screen.dart';
 import '../widgets/verification_dialog.dart';
 import '../providers/auth_provider.dart';
 
@@ -46,6 +45,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _excuseDialogShown = false;
   Map<String, dynamic> _currentMonthDays = {};
   final TextEditingController _excuseController = TextEditingController();
+  StreamSubscription<DocumentSnapshot>? _rosterSubscription;
+  String? _subscribedRosterDocId;
 
   @override
   void initState() {
@@ -58,6 +59,76 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkUpdates();
       _loadTodayRoster();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final user = context.watch<AuthProvider>().user;
+    _setupRosterListener(user);
+  }
+
+  void _setupRosterListener(UserModel? user) {
+    if (user == null) {
+      _rosterSubscription?.cancel();
+      _rosterSubscription = null;
+      _subscribedRosterDocId = null;
+      return;
+    }
+
+    final now = DateTime.now();
+    final docId = '${user.id}_${now.year}_${now.month}';
+    if (_subscribedRosterDocId == docId && _rosterSubscription != null) {
+      return;
+    }
+
+    _rosterSubscription?.cancel();
+    _subscribedRosterDocId = docId;
+
+    _rosterSubscription = FirebaseFirestore.instance
+        .collection('user_rosters')
+        .doc(docId)
+        .snapshots()
+        .listen((doc) {
+      if (!mounted) return;
+      if (doc.exists && doc.data() != null) {
+        final days = doc.data()?['days'] as Map?;
+        if (days != null) {
+          setState(() {
+            _currentMonthDays = Map<String, dynamic>.from(days);
+            final todayData = _currentMonthDays['${now.day}'];
+            if (todayData is Map) {
+              _todayShiftCode = todayData['shift']?.toString() ?? '';
+              _todayExcuse = todayData['excuse']?.toString() ?? '';
+              _excuseController.text = _todayExcuse;
+            } else {
+              _todayShiftCode = '';
+              _todayExcuse = '';
+              _excuseController.clear();
+            }
+            _rosterLoading = false;
+          });
+          _checkAndShowExcuseDialogAuto();
+          return;
+        }
+      }
+
+      setState(() {
+        _currentMonthDays = {};
+        _todayShiftCode = '';
+        _todayExcuse = '';
+        _excuseController.clear();
+        _rosterLoading = false;
+      });
+      _checkAndShowExcuseDialogAuto();
+    }, onError: (e) {
+      debugPrint('Error listening to today roster: $e');
+      if (mounted) {
+        setState(() {
+          _rosterLoading = false;
+        });
+      }
     });
   }
 
@@ -372,6 +443,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _announcementRefreshTimer?.cancel();
+    _rosterSubscription?.cancel();
     _excuseController.dispose();
     super.dispose();
   }
