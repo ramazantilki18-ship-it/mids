@@ -638,6 +638,7 @@ class _HomeScreenState extends State<HomeScreen> {
       required IconData icon,
       required Color color,
       required VoidCallback onTap,
+      Color? backgroundColor,
     }) {
       return Material(
         color: Colors.transparent,
@@ -645,20 +646,19 @@ class _HomeScreenState extends State<HomeScreen> {
           borderRadius: BorderRadius.circular(999),
           onTap: onTap,
           child: Container(
-            width: 28,
-            height: 28,
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
-              color: Theme.of(context)
+              color: backgroundColor ?? Theme.of(context)
                   .primaryColor
                   .withValues(alpha: isDark ? 0.18 : 0.06),
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
-                color: Theme.of(context)
-                    .primaryColor
-                    .withValues(alpha: isDark ? 0.24 : 0.10),
+                color: color.withValues(alpha: 0.35),
+                width: 1.2,
               ),
             ),
-            child: Icon(icon, size: 14, color: color),
+            child: Icon(icon, size: 16, color: color),
           ),
         ),
       );
@@ -712,7 +712,8 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(width: 8),
         buildActionButton(
           icon: Icons.healing_rounded,
-          color: Colors.greenAccent,
+          color: Colors.green,
+          backgroundColor: Colors.green.withValues(alpha: isDark ? 0.25 : 0.15),
           onTap: () async {
             final auditProvider = context.read<AuditProvider>();
             final systemProvider = context.read<SystemProvider>();
