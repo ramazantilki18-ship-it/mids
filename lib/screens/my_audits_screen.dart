@@ -10,7 +10,7 @@ import '../providers/audit_provider.dart';
 import '../utils/audit_type_matcher.dart';
 import '../widgets/audit_type_selector.dart';
 import 'package:intl/intl.dart';
-
+import '../services/pending_upload_service.dart';
 class MyAuditsScreen extends StatefulWidget {
   const MyAuditsScreen({super.key});
 
@@ -149,6 +149,39 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
     return filtered;
   }
 
+  Future<void> _forceRescueAudits() async {
+    final auditProvider = context.read<AuditProvider>();
+    final systemProvider = context.read<SystemProvider>();
+    
+    int rescued = 0;
+    for (var audit in auditProvider.auditHistory) {
+      if (audit.station == 'Edirnekapı' || audit.station == 'edirnekapı' || audit.station.toLowerCase().contains('edirne')) {
+        try {
+          await PendingUploadService.enqueue(
+            audit: audit,
+            answers: audit.answers,
+            questions: systemProvider.questions,
+            taskId: null,
+          );
+          rescued++;
+        } catch (e) {
+          debugPrint('Rescue error: $e');
+        }
+      }
+    }
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$rescued adet Edirnekapı denetimi kurtarma kuyruğuna eklendi! Arka planda tekrar yükleniyor...'),
+          duration: const Duration(seconds: 5),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+    PendingUploadService.processPendingUploads();
+  }
+
   int _activeFilterCount() {
     int count = 0;
     if (!_selectedLines.contains('Tümü')) count++;
@@ -261,6 +294,11 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
       appBar: AppBar(
         title: const Text('Denetim Kayıtları'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.healing, color: Colors.greenAccent),
+            tooltip: 'Edirnekapı Denetimini Kurtar',
+            onPressed: _forceRescueAudits,
+          ),
           IconButton(
             icon: Stack(
               clipBehavior: Clip.none,
