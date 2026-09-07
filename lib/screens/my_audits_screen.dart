@@ -155,27 +155,27 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
     
     int rescued = 0;
     for (var audit in auditProvider.auditHistory) {
-      if (audit.station == 'Edirnekapı' || audit.station == 'edirnekapı' || audit.station.toLowerCase().contains('edirne')) {
-        try {
-          await PendingUploadService.enqueue(
-            audit: audit,
-            answers: audit.answers,
-            questions: systemProvider.questions,
-            taskId: null,
-          );
-          rescued++;
-        } catch (e) {
-          debugPrint('Rescue error: $e');
-        }
+      try {
+        await PendingUploadService.enqueue(
+          audit: audit,
+          answers: audit.answers,
+          questions: systemProvider.questions,
+          taskId: null,
+        );
+        rescued++;
+      } catch (e) {
+        debugPrint('Rescue error: $e');
       }
     }
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$rescued adet Edirnekapı denetimi kurtarma kuyruğuna eklendi! Arka planda tekrar yükleniyor...'),
+          content: Text(rescued > 0 
+            ? '$rescued adet denetim kurtarma kuyruğuna eklendi! Arka planda tekrar yükleniyor...'
+            : 'Kurtarılacak denetim bulunamadı.'),
           duration: const Duration(seconds: 5),
-          backgroundColor: Colors.green,
+          backgroundColor: rescued > 0 ? Colors.green : Colors.orange,
         ),
       );
     }
@@ -296,7 +296,7 @@ class _MyAuditsScreenState extends State<MyAuditsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.healing, color: Colors.greenAccent),
-            tooltip: 'Edirnekapı Denetimini Kurtar',
+            tooltip: 'Çevrim Dışı Denetimleri Kurtar',
             onPressed: _forceRescueAudits,
           ),
           IconButton(
