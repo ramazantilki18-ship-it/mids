@@ -57,6 +57,8 @@ android {
             storePassword 'denetimsistemi'
             keyAlias 'dev_key'
             keyPassword 'denetimsistemi'
+            v1SigningEnabled true
+            v2SigningEnabled true
         }
     }
 
