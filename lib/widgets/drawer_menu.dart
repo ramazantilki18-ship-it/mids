@@ -70,7 +70,7 @@ class DrawerMenu extends StatelessWidget {
     return Container(
       color: AppColors.accentRed,
       padding: const EdgeInsets.all(24),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
