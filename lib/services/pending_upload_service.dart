@@ -82,7 +82,7 @@ class PendingUploadService {
       for (final entryJson in entries) {
         try {
           final data = jsonDecode(entryJson) as Map<String, dynamic>;
-          await _processEntry(data).timeout(const Duration(seconds: 90), onTimeout: () {
+          await _processEntry(data).timeout(const Duration(seconds: 300), onTimeout: () {
             throw Exception('processEntry timeout: Total upload took too long');
           });
           debugPrint('✅ PendingUpload: 1 denetim başarıyla yüklendi');
@@ -282,7 +282,7 @@ class PendingUploadService {
     
     try {
       debugPrint('⏳ 1. Audit yazılıyor...');
-      await FirebaseFirestore.instance.collection('audits').doc(finalAudit.id).set(finalAudit.toMap()).timeout(const Duration(seconds: 15));
+      await FirebaseFirestore.instance.collection('audits').doc(finalAudit.id).set(finalAudit.toMap()).timeout(const Duration(seconds: 30));
       debugPrint('✅ Audit başarıyla yazıldı.');
 
       // Sistem logu ekle

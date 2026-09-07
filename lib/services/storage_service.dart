@@ -108,7 +108,7 @@ class StorageService {
           filename: fileName,
         ));
 
-      final streamed = await request.send().timeout(const Duration(seconds: 20), onTimeout: () {
+      final streamed = await request.send().timeout(const Duration(seconds: 60), onTimeout: () {
         throw Exception('Cloudinary upload timed out');
       });
       final response = await http.Response.fromStream(streamed);
